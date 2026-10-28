@@ -1,9 +1,118 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Evidence — RAG V1</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
-<body><header><a class="brand" href="/">e<span>•</span>vidence</a><span class="badge">EPITA / RAG V1</span></header>
-<main><div class="intro"><p class="eyebrow">YOUR DOCUMENTS. CHECKABLE ANSWERS.</p><h1>Ask with evidence.</h1><p>A simple workspace for grounded answers. Add your sources, ask a question, then inspect the passages behind the answer.</p></div>
-<div class="workspace"><aside><section><div class="section-title"><h2>01 / Documents</h2><span id="count">0 sources</span></div><p class="hint">Select the sources for your next question.</p><form id="upload"><label class="upload">Add a document<input id="file" type="file" accept=".txt,.md" required></label><p class="hint">UTF-8 .txt or .md · up to 5 MiB</p><button type="submit" class="secondary">Upload source</button></form><div id="documents" class="documents"></div></section>
-<section><h2>02 / Retrieval settings</h2><label>Chunk size <span>characters · 100–1,000</span><input id="size" type="number" min="100" max="1000" value="800"></label><label>Overlap <span>characters · smaller than chunk size</span><input id="overlap" type="number" min="0" value="80"></label><label>Top-k <span>retrieved passages · 1–20</span><input id="topk" type="number" min="1" max="20" value="5"></label><p class="hint">New chunk settings build a separate index on the next question. Top-k takes effect immediately.</p><button id="index" class="secondary">Build selected index</button></section></aside>
-<div class="content"><section class="question-panel"><h2>03 / Ask your sources</h2><form id="ask"><label for="question" class="sr-only">Your question</label><textarea id="question" placeholder="What would you like to know?" maxlength="2000" required></textarea><div class="form-footer"><span class="hint">Answers use only your selected documents.</span><button type="submit">Find an answer <span aria-hidden="true">↗</span></button></div></form></section>
-<div id="status" role="status" aria-live="polite"></div><section id="result"><p class="eyebrow">READY WHEN YOU ARE</p><h3>Start with a source.</h3><p class="hint">Upload a document, keep it selected, and ask a question. Your answer and clickable source passages will appear here.</p></section>
-<details class="evaluation"><summary>04 / Retrieval baseline <span>View measured results</span></summary><p class="hint">Fixed Vellora manual question set. Hit@k measures passage retrieval, not answer accuracy. Unanswerable questions are reported separately.</p><div id="evaluation"></div></details></div></div></main><footer>Local embeddings · Chroma vector search · Gemini generation<span>Read the sources. Verify the answer.</span></footer></body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Evidence — RAG V1</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/">e<span>•</span>vidence</a
+      ><span class="badge">EPITA / RAG V1</span>
+    </header>
+    <main>
+      <div class="intro">
+        <p class="eyebrow">YOUR DOCUMENTS. CHECKABLE ANSWERS.</p>
+        <h1>Ask with evidence.</h1>
+        <p>
+          A simple workspace for grounded answers. Add your sources, ask a
+          question, then inspect the passages behind the answer.
+        </p>
+      </div>
+      <div class="workspace">
+        <aside>
+          <section>
+            <div class="section-title">
+              <h2>01 / Documents</h2>
+              <span id="count">0 sources</span>
+            </div>
+            <p class="hint">Select the sources for your next question.</p>
+            <form id="upload">
+              <label class="upload"
+                >Add a document<input
+                  id="file"
+                  type="file"
+                  accept=".txt,.md"
+                  required
+              /></label>
+              <p class="hint">UTF-8 .txt or .md · up to 5 MiB</p>
+              <button type="submit" class="secondary">Upload source</button>
+            </form>
+            <div id="documents" class="documents"></div>
+          </section>
+          <section>
+            <h2>02 / Retrieval settings</h2>
+            <label
+              >Chunk size <span>characters · 100–1,000</span
+              ><input
+                id="size"
+                type="number"
+                min="100"
+                max="1000"
+                value="800" /></label
+            ><label
+              >Overlap <span>characters · smaller than chunk size</span
+              ><input id="overlap" type="number" min="0" value="80" /></label
+            ><label
+              >Top-k <span>retrieved passages · 1–20</span
+              ><input id="topk" type="number" min="1" max="20" value="5"
+            /></label>
+            <p class="hint">
+              New chunk settings build a separate index on the next question.
+              Top-k takes effect immediately.
+            </p>
+            <button id="index" class="secondary">Build selected index</button>
+          </section>
+        </aside>
+        <div class="content">
+          <section class="question-panel">
+            <h2>03 / Ask your sources</h2>
+            <form id="ask">
+              <label for="question" class="sr-only">Your question</label
+              ><textarea
+                id="question"
+                placeholder="What would you like to know?"
+                maxlength="2000"
+                required
+              ></textarea>
+              <div class="form-footer">
+                <span class="hint"
+                  >Answers use only your selected documents.</span
+                ><button type="submit">
+                  Find an answer <span aria-hidden="true">↗</span>
+                </button>
+              </div>
+            </form>
+          </section>
+          <div id="status" role="status" aria-live="polite"></div>
+          <section id="result">
+            <p class="eyebrow">READY WHEN YOU ARE</p>
+            <h3>Start with a source.</h3>
+            <p class="hint">
+              Upload a document, keep it selected, and ask a question. Your
+              answer and clickable source passages will appear here.
+            </p>
+          </section>
+          <details class="evaluation">
+            <summary>
+              04 / Retrieval baseline <span>View measured results</span>
+            </summary>
+            <p class="hint">
+              Fixed Vellora manual question set. Hit@k measures passage
+              retrieval, not answer accuracy. Unanswerable questions are
+              reported separately.
+            </p>
+            <div id="evaluation"></div>
+          </details>
+        </div>
+      </div>
+    </main>
+    <footer>
+      Local embeddings · Chroma vector search · Gemini generation<span
+        >Read the sources. Verify the answer.</span
+      >
+    </footer>
+  </body>
+</html>

@@ -41,7 +41,7 @@ Changing chunk size or overlap creates/reuses a distinct index; changing top-k d
 
 ## Actual verification
 
-1. `.venv/bin/python -m pytest -q`: **30 passed in 6.42 seconds**. Tests use real MiniLM embeddings and real persistent Chroma. Generation is stubbed for deterministic validation tests. Covered uploads (.txt/.md), unsupported/empty/invalid UTF-8/path/oversize uploads, duplicates, listing, deletion across settings, selection, chunk offsets, 384-dimensional embeddings, vector storage/query, invalid parameters/questions/selections, malformed JSON/missing fields/fabricated references, abstention, missing credentials, simulated database/embedding failures and simulated LLM API failure.
+1. `.venv/bin/python -m pytest -q`: **30 passed in 6.42 seconds**; after frontend formatting, **30 passed in 7.19 seconds**. Tests use real MiniLM embeddings and real persistent Chroma. Generation is stubbed for deterministic validation tests. Covered uploads (.txt/.md), unsupported/empty/invalid UTF-8/path/oversize uploads, duplicates, listing, deletion across settings, selection, chunk offsets, 384-dimensional embeddings, vector storage/query, invalid parameters/questions/selections, malformed JSON/missing fields/fabricated references, abstention, missing credentials, simulated database/embedding failures and simulated LLM API failure.
 2. `.venv/bin/python -m evaluation.run`: actual MiniLM/Chroma evaluation completed successfully, **Hit@5 7/12 = 0.5833333333**; three unanswerable questions excluded from the denominator.
 3. Started the documented server command (`python -m uvicorn rag_app.api:app --host 127.0.0.1 --port 8000`). Actual HTTP responses for `/`, `/app.js`, `/style.css` succeeded. Multipart upload and `/api/ask` completed a real end-to-end request with Gemini.
 4. Real Gemini: “How long is the Vellora Duo warranty?” → “The Vellora Duo is covered by a two-year warranty from the date of purchase.” One actual retrieved citation passed validation. Evidence snapshots are in `live_smoke.json`.
@@ -69,8 +69,9 @@ Feras (GitHub: Ferasmich) is the sole project developer. The professor specifies
 
 ## Git release
 
-Implementation commit: pending release commit.
-Tag and push: pending release verification. No pre-existing local or remote `v1` tag was found during preparation.
+Implementation commit: `27bd1da5a4ae0059358a6e7fa9ae9cbdc43b79f5`. A subsequent release-documentation/formatting commit contains this finalized report and is the commit referenced by `v1`. To obtain the exact release hash, run `git rev-parse 'v1^{commit}'`; a tracked report cannot contain its own commit hash.
+
+Release status: **PASS** — `main` and annotated tag `v1` published together to the fork using `git push --atomic origin main refs/tags/v1`, without force. Remote branch and dereferenced tag hashes verified against the local release commit; working tree clean. No pre-existing local or remote `v1` tag was found before creation. No professor/upstream writes were made.
 
 ## Run and reproduce
 
@@ -107,6 +108,6 @@ python -m pytest -q
 | PARTIAL | Frontend document/question/settings/reference/evaluation features implemented; HTTP routes and JS syntax verified; browser runtime interaction unavailable |
 | NOT TESTED | Visual/responsive browser appearance and reference click-through in an actual browser |
 | PARTIAL | Individual participation requires professor confirmation; no teammates fabricated |
-| PARTIAL | Git release awaiting final push/tag verification below |
+| PASS | Fork main and annotated v1 tag published atomically and verified; no force or upstream push |
 
 No mandatory V1 application capability is knowingly missing. Browser verification and individual-team approval remain outstanding. Retrieval misses are measured baseline limitations, not hidden passes.
