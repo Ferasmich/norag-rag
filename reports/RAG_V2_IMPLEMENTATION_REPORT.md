@@ -60,7 +60,7 @@ Words tokenization uses case folding and Unicode word characters, retains intern
 ## Actual verification
 
 - Baseline before code changes: `.venv/bin/python -m pytest -q` — **30 passed in 9.47 seconds**.
-- V2 expanded suite: same command — **40 passed in 8.88 seconds** on the release-preparation rerun. Real MiniLM and Chroma, hosted generation mocked in tests.
+- V2 expanded suite: same command — **40 passed in 8.32 seconds** on the final release-preparation rerun. Real MiniLM and Chroma, hosted generation mocked in tests.
 - Original evaluator: `.venv/bin/python -m evaluation.run --output /tmp/epita-v1-reproduced.json` — **7/12 = 58.3% Hit@5**; original committed baseline not overwritten.
 - Four actual CLI retrieval runs: `evaluation.v2` on Kestrel and Vellora, each at 800/80 and 500/100 — completed successfully, metrics below.
 - Actual HTTP `POST /api/evaluations` with Kestrel 800/80/k=10 and both hosted options: saved real generation/no-context responses. Initial run had six generation and six no-context errors; retained unchanged. Paced rerun: **10/10 generated responses and 10/10 no-context responses, no recorded hosted errors**.
@@ -158,7 +158,7 @@ All V1 limits remain: MiniLM input truncation, exact-code failures, no calibrate
 
 ## Security and Git checks
 
-`/Tasks/` is ignored and untracked; runtime copies are outside Tasks, and PDFs are not proposed for commit. `.env`, local databases, uploads, caches and the virtual environment remain ignored. The existing service keeps credentials server-side and renders model/source text safely. No new dependencies. Candidate tracked-file scan against actual local API secret values found **zero matches**. Course corpus and starter copies were verified byte-identical to the local supplied material. `git ls-files Tasks .env data chroma_db` is empty; frozen V1 service, corpus, dataset, baseline and report compare unchanged against `v1`. Final staged-path scans remain pending until release. The agent will not force-push, change `v1`, overwrite an existing `v2`, or write to upstream.
+`/Tasks/` is ignored and untracked; runtime copies are outside Tasks, and PDFs are not proposed for commit. `.env`, local databases, uploads, caches and the virtual environment remain ignored. The existing service keeps credentials server-side and renders model/source text safely. No new dependencies. Candidate tracked-file scan against actual local API secret values found **zero matches**. Course corpus and starter copies were verified byte-identical to the local supplied material. `git ls-files Tasks .env data chroma_db` is empty; frozen V1 service, corpus, dataset, baseline and report compare unchanged against `v1`. Final staged-path scan passed for all 32 implementation files; no secret-value matches, Tasks paths, environments or databases were staged. The agent will not force-push, change `v1`, overwrite an existing `v2`, or write to upstream.
 
 Release hashes and verified GitHub status are recorded in `reports/V2_FINAL_SUBMISSION.md`. The final release SHA is resolved from the annotated `v2` tag; a tracked report cannot embed its own commit hash.
 
@@ -208,3 +208,8 @@ Vellora flags: **q09 and q10 true; the other 13 false**. q09 supplies both remov
 RAG versus no-context: on Kestrel, the owner rated 6/10 RAG answers correct, 3 partial and 1 wrong (0 unsupported), while none of the 10 no-context responses supplied the expected facts. The wrong q08 is primarily a retrieval failure: team/channel evidence is missing; q02/q04/q05 omit details despite available source information, indicating incomplete generation. The owner's acceptance of q06/q07 is preserved exactly, despite the previously noted version-selection caveat. Vellora has 2/15 no-context expected-fact matches according to AI assessment; it was evaluated for retrieval at all four k values, but no comprehensive Vellora RAG-answer quality percentage is claimed. Retrieval hits are not answer grades. The small question sets and mixed human/AI assessment provenance limit broader conclusions.
 
 Verification limitations: complete responsive/browser click-through remains unverified; browser smoke and HTTP workflows are recorded above. Student report personalization and the actual submission email remain owner responsibilities. No V3/V4 functionality was added.
+
+
+## Release verification record
+
+Verified implementation commit: `c7b4c1deee2629b67e6ffd31edf4fa92e64a23ca`. Pushed to `origin/main` successfully; `git ls-remote origin refs/heads/main` matched that exact SHA. A final documentation-only commit adds `V2_FINAL_SUBMISSION.md`; the annotated `v2` tag identifies the final release commit including that report. Final commit/tag hashes are resolved and checked against GitHub after publication. V1 remains `c1efb7590907e478f3d5d5045e3b307be935bb9e`, annotated object `079f4e5d66d724606e61f705470414f4f20a57df`.
