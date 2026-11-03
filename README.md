@@ -107,3 +107,10 @@ See `REPORT.md` for decisions and observed failures, `reports/RAG_V2_IMPLEMENTAT
 
 
 Kestrel's completed owner review is saved in `evaluation/results/kestrel-reviewed.json`: 6 correct, 3 partial, 1 wrong; all 10 no-context flags false. All 15 Vellora no-context responses are AI-assessed with explicit provenance; q09 and q10 supply the expected facts. No human Vellora review is claimed. See the latest review-status section in REPORT for release readiness.
+
+
+## Post-release Vellora human confirmation
+
+Feras M explicitly confirmed all 15 proposed no-context judgments in chat after reviewing the question/expected-answer/response summary table: **Yes for q09 and q10, No for the other 13**. The confirmation concerns the no-context flags, not a new Vellora RAG-answer grading experiment. `evaluation/results/vellora-reviewed.json` and `vellora-no-context.jsonl` now record the verifier, confirmation timestamp, rationale and review history. Original AI assessor metadata remains unchanged, including its historical `human_reviewed: false` value at the time of the AI-only assessment; the subsequent `human_verification` event records the later confirmation. `vellora-ai-assessed.json` remains byte-for-byte intact. All 10 Kestrel human reviews are unchanged. Earlier AI-only status descriptions in this report describe the original v2 release snapshot and are superseded by this confirmation.
+
+This is a follow-up on main, not a new release. The existing annotated v2 tag remains object `07ff1e7d3262b4fbbb589eb97921cfa1803d1d20`, pointing to release commit `2a223476c8df74ae6e0464fada5c277f39aaa984`. Main is expected to advance beyond that tag. No evaluation questions, model responses, retrieval metrics or application code changed.

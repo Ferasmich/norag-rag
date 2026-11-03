@@ -213,3 +213,12 @@ Verification limitations: complete responsive/browser click-through remains unve
 ## Release verification record
 
 Verified implementation commit: `c7b4c1deee2629b67e6ffd31edf4fa92e64a23ca`. Pushed to `origin/main` successfully; `git ls-remote origin refs/heads/main` matched that exact SHA. A final documentation-only commit adds `V2_FINAL_SUBMISSION.md`; the annotated `v2` tag identifies the final release commit including that report. Final commit/tag hashes are resolved and checked against GitHub after publication. V1 remains `c1efb7590907e478f3d5d5045e3b307be935bb9e`, annotated object `079f4e5d66d724606e61f705470414f4f20a57df`.
+
+
+## Post-release Vellora human confirmation
+
+Feras M explicitly confirmed all 15 proposed no-context judgments in chat after reviewing the question/expected-answer/response summary table: **Yes for q09 and q10, No for the other 13**. The confirmation concerns the no-context flags, not a new Vellora RAG-answer grading experiment. `evaluation/results/vellora-reviewed.json` and `vellora-no-context.jsonl` now record the verifier, confirmation timestamp, rationale and review history. Original AI assessor metadata remains unchanged, including its historical `human_reviewed: false` value at the time of the AI-only assessment; the subsequent `human_verification` event records the later confirmation. `vellora-ai-assessed.json` remains byte-for-byte intact. All 10 Kestrel human reviews are unchanged. Earlier AI-only status descriptions in this report describe the original v2 release snapshot and are superseded by this confirmation.
+
+This is a follow-up on main, not a new release. The existing annotated v2 tag remains object `07ff1e7d3262b4fbbb589eb97921cfa1803d1d20`, pointing to release commit `2a223476c8df74ae6e0464fada5c277f39aaa984`. Main is expected to advance beyond that tag. No evaluation questions, model responses, retrieval metrics or application code changed.
+
+Follow-up validation: 40 tests passed in 8.26 seconds; all 15 confirmations and original AI/Kestrel artifact integrity checked; git diff whitespace check passed.

@@ -28,7 +28,7 @@ Deadline: November 3, 2026, 11:59 a.m., Europe/Paris.
 
 **PARTIAL:** complete browser click-through and responsive visual QA unavailable after browser access timed out; native browser smoke reached tabs/corpus loading/evaluation launch, and HTTP routes passed. Owner should review/personalize the AI-assisted report and AI Vellora assessments. Exact identifiers and two-hop evidence still fail in measured cases; citation schema validity is not semantic proof. Earlier hosted errors are preserved; paced final runs completed with no recorded errors. No full Vellora RAG-answer accuracy measurement claimed.
 
-GitHub publication is the authorized submission artifact. Submission email to the professor was **not sent**; the owner remains responsible for that action and any team-policy confirmation. No force push, upstream push or v1 modification is permitted. The release procedure publishes the documentation commit and annotated v2 tag, then verifies remote main and dereferenced tag equal local HEAD and v1 is unchanged.
+GitHub publication is the authorized submission artifact. Submission email to the professor was **not sent**; the owner remains responsible for that action and any team-policy confirmation. No force push, upstream push or v1 modification is permitted. The original release verified main and v2 at the same commit. The human-confirmation follow-up advances main only; v2 and v1 remain unchanged.
 
 ```bash
 git rev-parse HEAD v2 'v2^{commit}'
@@ -48,3 +48,12 @@ python -m evaluation.v2 --corpus vellora --chunk-size 500 --chunk-overlap 100 --
 ```
 
 Use fresh output paths. Optional `--answers --no-context` requires configured Gemini credentials and sends only the relevant questions/evidence, not expected answers. See README and `RAG_V2_IMPLEMENTATION_REPORT.md` for exact methodology and grading rules.
+
+
+## Post-release Vellora human confirmation
+
+Feras M explicitly confirmed all 15 proposed no-context judgments in chat after reviewing the question/expected-answer/response summary table: **Yes for q09 and q10, No for the other 13**. The confirmation concerns the no-context flags, not a new Vellora RAG-answer grading experiment. `evaluation/results/vellora-reviewed.json` and `vellora-no-context.jsonl` now record the verifier, confirmation timestamp, rationale and review history. Original AI assessor metadata remains unchanged, including its historical `human_reviewed: false` value at the time of the AI-only assessment; the subsequent `human_verification` event records the later confirmation. `vellora-ai-assessed.json` remains byte-for-byte intact. All 10 Kestrel human reviews are unchanged. Earlier AI-only status descriptions in this report describe the original v2 release snapshot and are superseded by this confirmation.
+
+This is a follow-up on main, not a new release. The existing annotated v2 tag remains object `07ff1e7d3262b4fbbb589eb97921cfa1803d1d20`, pointing to release commit `2a223476c8df74ae6e0464fada5c277f39aaa984`. Main is expected to advance beyond that tag. No evaluation questions, model responses, retrieval metrics or application code changed.
+
+Follow-up validation: 40 tests passed in 8.26 seconds; all 15 confirmations and original AI/Kestrel artifact integrity checked; git diff whitespace check passed.
