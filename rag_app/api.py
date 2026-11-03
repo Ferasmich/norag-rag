@@ -2,15 +2,15 @@ import logging
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from .models import Question, Selection
+from .models import Question, Selection, WordsRequest, EvaluationRequest, GradeRequest
 from .service import MAX_BYTES, ROOT, PipelineError, RagService
 
 
 def create_app(service=None):
-    app = FastAPI(title='Evidence / RAG V1')
+    app = FastAPI(title='Evidence / RAG V2')
     app.state.rag = service or RagService()
 
     @app.exception_handler(PipelineError)
@@ -53,6 +53,89 @@ def create_app(service=None):
         import json
         path = ROOT / 'evaluation' / 'baseline.json'
         return json.loads(path.read_text()) if path.exists() else {'status': 'Run python -m evaluation.run first.'}
+
+    @app.post('/api/search')
+    def search(body: Question):
+        return app.state.rag.retrieve(body.question, body.document_ids, body.settings)
+
+    @app.post('/api/words')
+    def words(body: WordsRequest):
+        from .words import analyze
+        return analyze(app.state.rag, body.document_ids, body.settings, body.question, body.word)
+
+    @app.get('/api/question-sets')
+    def question_sets():
+        from evaluation.v2 import questions
+        return {name: questions(name) for name in ('kestrel', 'vellora')}
+
+    @app.post('/api/corpora/{corpus}')
+    def load_corpus(corpus: str):
+        from evaluation.v2 import corpus_dir, questions
+        questions(corpus)  # Validate before resolving paths.
+        files = sorted(corpus_dir(corpus).glob('*.md')) if corpus == 'kestrel' else [ROOT/'docs'/'vellora-duo-espresso-machine.txt']
+        return [app.state.rag.upload(p.name, p.read_bytes()) for p in files]
+
+    @app.get('/api/measured-runs')
+    def measured_runs():
+        return sorted(p.name for p in (ROOT/'evaluation'/'results').glob('*.json'))
+
+    @app.post('/api/measured-runs/{filename}')
+    def open_measured_run(filename: str):
+        import json
+        from evaluation.v2 import save
+        allowed = {p.name: p for p in (ROOT/'evaluation'/'results').glob('*.json')}
+        if filename not in allowed:
+            raise PipelineError('Measured run not found.', 404)
+        result = json.loads(allowed[filename].read_text())
+        run_id = save(result, app.state.rag.root/'evaluations')
+        return dict(run_id=run_id, result=result)
+
+    @app.post('/api/evaluations')
+    def evaluate(body: EvaluationRequest):
+        from evaluation.v2 import run, save
+        result = run(body.corpus, body.settings, body.answers, body.no_context)
+        run_id = save(result, app.state.rag.root/'evaluations')
+        return dict(run_id=run_id, result=result)
+
+    def result_path(run_id):
+        import re
+        if not re.fullmatch(r'[0-9a-f]{32}', run_id):
+            raise PipelineError('Evaluation not found.', 404)
+        path = app.state.rag.root/'evaluations'/f'{run_id}.json'
+        if not path.exists():
+            raise PipelineError('Evaluation not found.', 404)
+        return path
+
+    @app.get('/api/evaluations/{run_id}')
+    def saved_evaluation(run_id: str):
+        import json
+        with app.state.rag.lock:
+            return json.loads(result_path(run_id).read_text())
+
+    @app.post('/api/evaluations/{run_id}/grades')
+    def grade(run_id: str, body: GradeRequest):
+        import json
+        from datetime import datetime, timezone
+        with app.state.rag.lock:
+            path = result_path(run_id)
+            result = json.loads(path.read_text())
+            row = next((r for r in result['results'] if r['id'] == body.question_id), None)
+            if row is None:
+                raise PipelineError('Question not found.', 404)
+            if body.grade is not None and 'response' not in row:
+                raise PipelineError('Generate an answer before grading it.', 400)
+            if body.no_context_correct is not None and 'no_context_answer' not in row:
+                raise PipelineError('Run a no-context check before reviewing it.', 400)
+            row.update(grade=body.grade, grade_notes=body.notes, reviewer=body.reviewer,
+                       no_context_correct=body.no_context_correct, graded_at=datetime.now(timezone.utc).isoformat())
+            temporary = path.with_suffix('.tmp')
+            temporary.write_text(json.dumps(result, indent=2)+'\n')
+            temporary.replace(path)
+        return {'saved': True}
+
+    @app.get('/about', response_class=HTMLResponse)
+    def about():
+        return '<!doctype html><html lang="en"><meta charset="utf-8"><title>About</title><p style="font-size:2rem">Denis Amselemovitch is an intriguing character who likes to make impromptu appearances in incongruous places.</p></html>'
 
     app.mount('/', StaticFiles(directory=ROOT / 'rag_app' / 'static', html=True), name='frontend')
     return app

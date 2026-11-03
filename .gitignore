@@ -31,3 +31,6 @@ future/
 data/
 .env.*
 !.env.example
+
+# Local course task materials
+/Tasks/

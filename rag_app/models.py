@@ -44,3 +44,31 @@ class GeneratedAnswer(BaseModel):
         if len(set(self.citations)) != len(self.citations):
             raise ValueError('Duplicate citations.')
         return self
+
+
+class WordsRequest(Selection):
+    question: str = Field(default='', max_length=2000)
+    word: str = Field(default='', max_length=200)
+
+
+class EvaluationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    corpus: str = Field(pattern='^(kestrel|vellora)$')
+    settings: Settings = Field(default_factory=Settings)
+    answers: bool = False
+    no_context: bool = False
+
+
+class GradeRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    question_id: str = Field(min_length=1, max_length=80)
+    grade: str | None = Field(default=None, pattern='^(correct|partial|wrong|unsupported)$')
+    notes: str = Field(min_length=1, max_length=3000)
+    reviewer: str = Field(min_length=1, max_length=100)
+    no_context_correct: bool | None = None
+
+    @model_validator(mode='after')
+    def has_review(self):
+        if self.grade is None and self.no_context_correct is None:
+            raise ValueError('Provide an answer grade or a no-context correctness flag.')
+        return self

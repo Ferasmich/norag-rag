@@ -182,3 +182,299 @@ api("evaluation")
     host.append(details);
   })
   .catch((e) => ($("evaluation").textContent = e.message));
+
+// C7 evaluation and Words share the existing selected sources and settings.
+document.querySelectorAll("[data-tab]").forEach((button) => {
+  button.onclick = () => {
+    document.querySelectorAll(".tab-view").forEach((view) => {
+      view.hidden = view.id !== button.dataset.tab;
+    });
+    document
+      .querySelectorAll("[data-tab]")
+      .forEach((tab) =>
+        tab.setAttribute("aria-pressed", String(tab === button)),
+      );
+  };
+});
+api("question-sets")
+  .then((sets) => {
+    for (const [corpus, questions] of Object.entries(sets)) {
+      for (const q of questions) {
+        const option = node("option", `${corpus} / ${q.id}: ${q.question}`);
+        option.value = q.question;
+        $("word-question").append(option);
+      }
+    }
+  })
+  .catch((e) => status(e.message, true));
+$("word-question").onchange = () => {
+  $("words-question").value = $("word-question").value;
+  $("words-mode").value = "question";
+};
+$("load-corpus").onclick = () =>
+  run(async () => {
+    const docs = await api("corpora/" + $("eval-corpus").value, post({}));
+    await refresh();
+    const ids = new Set(docs.map((d) => d.id));
+    document.querySelectorAll(".doc input").forEach((c) => {
+      c.checked = ids.has(c.value);
+    });
+    status("Corpus loaded and selected.");
+  });
+function downloadJSON(data, filename) {
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+  );
+  const link = node("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function showRun(runId, result) {
+  $("saved-run").value = runId;
+  localStorage.setItem("rag-last-evaluation", runId);
+  const host = $("eval-results");
+  host.replaceChildren();
+  host.append(node("p", `Saved run: ${runId}`));
+  const download = node("button", "Download saved results");
+  download.onclick = () =>
+    run(async () =>
+      downloadJSON(
+        await api("evaluations/" + runId),
+        `${result.corpus}-${runId}.json`,
+      ),
+    );
+  host.append(
+    download,
+    node("h3", "Overall and per-type metrics"),
+    node(
+      "pre",
+      JSON.stringify(
+        {
+          settings: result.settings,
+          overall: result.overall,
+          by_type: result.by_type,
+        },
+        null,
+        2,
+      ),
+    ),
+  );
+  const rules = node("details");
+  rules.append(
+    node("summary", "Grading rules (read before grading)"),
+    node("pre", JSON.stringify(result.grading_rules, null, 2)),
+  );
+  host.append(rules);
+  for (const row of result.results) {
+    const detail = node("details");
+    detail.append(node("summary", `${row.id} / ${row.type}: ${row.question}`));
+    detail.append(node("p", `Expected: ${row.expected_answer}`));
+    detail.append(
+      node(
+        "pre",
+        JSON.stringify(
+          {
+            hits: row.hits,
+            quote_recall: row.quote_recall,
+            evidence: row.evidence,
+          },
+          null,
+          2,
+        ),
+      ),
+    );
+    if (row.response || row.no_context_answer !== undefined) {
+      if (row.response) {
+        detail.append(node("p", `Generated: ${row.response.answer}`));
+        for (const ref of row.response.references)
+          detail.append(reference(ref));
+      }
+      const grading = node("form");
+      const gradeLabel = node("label", "Grade");
+      const grade = node("select");
+      for (const value of ["", "correct", "partial", "wrong", "unsupported"]) {
+        const op = node("option", value || "Choose after review");
+        op.value = value;
+        grade.append(op);
+      }
+      grade.value = row.grade || "";
+      grade.required = !!row.response;
+      grade.disabled = !row.response;
+      gradeLabel.append(grade);
+      const reviewerLabel = node("label", "Reviewer");
+      const reviewer = node("input");
+      reviewer.required = true;
+      reviewer.maxLength = 100;
+      reviewer.value = row.reviewer || "";
+      reviewerLabel.append(reviewer);
+      const noteLabel = node(
+        "label",
+        "Notes: supporting facts; retrieval or generation failure",
+      );
+      const notes = node("textarea");
+      notes.required = true;
+      notes.maxLength = 3000;
+      notes.value = row.grade_notes || "";
+      noteLabel.append(notes);
+      const ncLabel = node(
+        "label",
+        "No-context answer supplies expected facts?",
+      );
+      const nc = node("select");
+      for (const [value, label] of [
+        ["", "Not reviewed"],
+        ["true", "Yes — flag prior knowledge"],
+        ["false", "No"],
+      ]) {
+        const op = node("option", label);
+        op.value = value;
+        nc.append(op);
+      }
+      nc.value =
+        row.no_context_correct === null ? "" : String(row.no_context_correct);
+      nc.disabled = row.no_context_answer === undefined;
+      nc.required = row.no_context_answer !== undefined;
+      ncLabel.append(nc);
+      const save = node("button", "Save human grade");
+      save.type = "submit";
+      grading.append(gradeLabel, reviewerLabel, noteLabel, ncLabel, save);
+      grading.onsubmit = (e) => {
+        e.preventDefault();
+        run(async () => {
+          await api(
+            `evaluations/${runId}/grades`,
+            post({
+              question_id: row.id,
+              grade: grade.value || null,
+              notes: notes.value,
+              reviewer: reviewer.value,
+              no_context_correct: nc.value === "" ? null : nc.value === "true",
+            }),
+          );
+          status("Grade saved to results file.");
+        });
+      };
+      detail.append(grading);
+    }
+    if (row.generation_error)
+      detail.append(node("p", row.generation_error, "error"));
+    if (row.no_context_answer !== undefined)
+      detail.append(node("p", `Without retrieval: ${row.no_context_answer}`));
+    if (row.no_context_error)
+      detail.append(node("p", row.no_context_error, "error"));
+    const passages = node("details");
+    passages.append(node("summary", "All retrieved passages"));
+    for (const ref of row.retrieved) passages.append(reference(ref));
+    detail.append(passages);
+    host.append(detail);
+  }
+}
+$("evaluate").onclick = () =>
+  run(async () => {
+    status(
+      "Running evaluation… Hosted generation, if selected, may take several minutes.",
+    );
+    const data = await api(
+      "evaluations",
+      post({
+        corpus: $("eval-corpus").value,
+        settings: payload().settings,
+        answers: $("eval-answers").checked,
+        no_context: $("eval-no-context").checked,
+      }),
+    );
+    showRun(data.run_id, data.result);
+    status("Evaluation saved. Review per-question results and any errors.");
+  });
+$("saved-run").value = localStorage.getItem("rag-last-evaluation") || "";
+$("restore-run").onclick = () =>
+  run(async () => {
+    const id = $("saved-run").value;
+    showRun(id, await api("evaluations/" + encodeURIComponent(id)));
+    status("Saved evaluation opened.");
+  });
+$("analyze").onclick = () =>
+  run(async () => {
+    const data = await api(
+      "words",
+      post({
+        ...payload(),
+        question:
+          $("words-mode").value === "question" ? $("words-question").value : "",
+        word: $("words-mode").value === "corpus" ? $("word-query").value : "",
+      }),
+    );
+    const host = $("word-results");
+    host.replaceChildren(
+      node("p", `${data.chunk_count} chunks. ${data.counting}`),
+    );
+    for (const word of data.words) {
+      const detail = node("details");
+      detail.append(
+        node(
+          "summary",
+          `${word.word}: ${word.present ? `${word.occurrences} occurrences in ${word.chunks} chunks` : "absent from corpus"}`,
+        ),
+      );
+      for (const passage of word.passages) {
+        const item = node("details");
+        item.append(
+          node(
+            "summary",
+            `${passage.name}: ${passage.start}–${passage.end} / ${passage.count} occurrences`,
+          ),
+          node("p", passage.text),
+        );
+        detail.append(item);
+      }
+      host.append(detail);
+    }
+    if ($("words-mode").value === "corpus") {
+      const table = node("table");
+      const head = node("tr");
+      for (const title of ["Word", "Occurrences", "Chunks"])
+        head.append(node("th", title));
+      table.append(head);
+      for (const row of data.vocabulary) {
+        const tr = node("tr");
+        const cell = node("td");
+        const link = node("button", row.word, "secondary");
+        link.onclick = () => {
+          $("word-query").value = row.word;
+          $("analyze").click();
+        };
+        cell.append(link);
+        tr.append(
+          cell,
+          node("td", String(row.occurrences)),
+          node("td", String(row.chunks)),
+        );
+        table.append(tr);
+      }
+      host.append(table);
+    }
+    status("Word analysis ready.");
+  });
+
+api("measured-runs")
+  .then((names) => {
+    for (const name of names) {
+      const option = node("option", name);
+      option.value = name;
+      $("measured-run").append(option);
+    }
+  })
+  .catch((e) => status(e.message, true));
+$("open-measured-run").onclick = () =>
+  run(async () => {
+    const data = await api(
+      "measured-runs/" + encodeURIComponent($("measured-run").value),
+      post({}),
+    );
+    showRun(data.run_id, data.result);
+    status(
+      "Measured run copied to local review. Save grades and download the reviewed JSON.",
+    );
+  });
