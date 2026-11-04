@@ -11,6 +11,17 @@ Answering: selected source IDs + question → same embedding model → filtered 
 
 The original `ask_rag_google.py` and `ask_norag_google.py` course demos remain available and use their original `chroma_db/` store. The web application uses a separate ignored `data/` directory.
 
+## Course demos and new challenges
+
+The professor’s upstream updates are included alongside the V2 web application:
+
+- `ask_norag_google.py`: full-context NoRAG demo, now using `gemini-2.5-flash-lite`.
+- `ask_rag_google.py`: dense RAG demo using `docs/CrimeAndPunishment.txt` and five retrieved chunks.
+- [BM25 guide](bm25/README.md): lexical retrieval demo and challenges. Run `python bm25/ask_bm25_rag_google.py` from the repository root.
+- [Two-hop concept graph challenge](concepts/concept_graph_challenge_part1.md): the new retrieval exercise.
+
+These standalone course demos are separate from the V2 web application and its measured evaluation results.
+
 ## Installation
 
 Use Python 3.12 (the tested version), a writable local filesystem and internet access for the first MiniLM download. A Google API key with access to the selected Gemini model is needed for generation; retrieval evaluation does not require it.
