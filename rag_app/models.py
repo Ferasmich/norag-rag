@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
@@ -46,6 +48,32 @@ class GeneratedAnswer(BaseModel):
         return self
 
 
+class RetrievalConfig(BaseModel):
+    """Separate from chunk Settings so toggles never change dense index identity."""
+    model_config = ConfigDict(extra='forbid', strict=True)
+    retrievers: list[Literal['dense', 'bm25', 'graph']] = Field(default_factory=lambda: ['dense'],
+                                                              min_length=1, max_length=3)
+    candidate_depth: int = Field(default=20, ge=1, le=10000)
+    rrf_k: int = Field(default=60, ge=0, le=1000000)
+
+    @model_validator(mode='after')
+    def unique_retrievers(self):
+        if len(set(self.retrievers)) != len(self.retrievers):
+            raise ValueError('Select each retriever only once.')
+        self.retrievers = [name for name in ('dense', 'bm25', 'graph') if name in self.retrievers]
+        return self
+
+
+class RetrievalQuestion(Question):
+    retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
+
+    @model_validator(mode='after')
+    def sufficient_candidates(self):
+        if self.retrieval.candidate_depth < self.settings.top_k:
+            raise ValueError('Candidate depth must be at least final top-k.')
+        return self
+
+
 class WordsRequest(Selection):
     question: str = Field(default='', max_length=2000)
     word: str = Field(default='', max_length=200)
@@ -57,6 +85,22 @@ class EvaluationRequest(BaseModel):
     settings: Settings = Field(default_factory=Settings)
     answers: bool = False
     no_context: bool = False
+
+
+class V3EvaluationRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    corpus: Literal['kestrel', 'vellora']
+    settings: Settings = Field(default_factory=Settings)
+    retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
+    question_set: Literal['v2', 'v3'] = 'v2'
+
+    @model_validator(mode='after')
+    def valid_configuration(self):
+        if 'graph' in self.retrieval.retrievers and self.corpus != 'kestrel':
+            raise ValueError('Graph evaluation is Kestrel-only.')
+        if self.retrieval.candidate_depth < max(10, self.settings.top_k):
+            raise ValueError('Evaluation candidate depth must cover k=10 and final top-k.')
+        return self
 
 
 class GradeRequest(BaseModel):

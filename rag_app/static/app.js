@@ -28,6 +28,17 @@ function payload() {
     },
   };
 }
+function retrievalConfig() {
+  const retrievers = ["dense", "bm25", "graph"].filter(
+    (name) => $("retriever-" + name).checked,
+  );
+  if (!retrievers.length) throw new Error("Select at least one retriever.");
+  return {
+    retrievers,
+    candidate_depth: Number($("candidate-depth").value),
+    rrf_k: Number($("rrf-k").value),
+  };
+}
 function post(body) {
   return {
     method: "POST",
@@ -116,7 +127,7 @@ $("ask").onsubmit = (event) => {
     );
     const data = await api(
       "ask",
-      post({ ...payload(), question: $("question").value }),
+      post({ ...payload(), question: $("question").value, retrieval: retrievalConfig() }),
     );
     const result = $("result");
     result.replaceChildren(
@@ -139,6 +150,9 @@ $("ask").onsubmit = (event) => {
     );
     for (const ref of data.retrieved) all.append(reference(ref));
     result.append(all);
+    if (data.retrieval_status)
+      result.append(node("pre", JSON.stringify(data.retrieval_status, null, 2)));
+    if (data.graph_trace) renderGraph(result, data.graph_trace, data.references);
     status("Answer validated. Open a passage to check the evidence.");
   });
 };
@@ -150,12 +164,57 @@ function reference(ref) {
       `${ref.name} · line ${ref.line} · characters ${ref.start}–${ref.end}`,
     ),
     node("p", ref.text),
-    node(
-      "small",
-      `Cosine similarity ${ref.similarity.toFixed(3)} · not a confidence score`,
-    ),
   );
+  if (ref.origins) {
+    detail.append(node("small", Object.entries(ref.origins)
+      .map(([name, info]) => `${name}: rank ${info.rank}, raw score ${Number(info.raw_score).toFixed(3)}`)
+      .join(" · ")));
+    detail.append(node("p", `Fused rank ${ref.fused_rank} · RRF ${Number(ref.rrf_score).toFixed(6)} (not a confidence score)`));
+  } else if (typeof ref.similarity === "number") {
+    detail.append(node("small", `Cosine similarity ${ref.similarity.toFixed(3)} · not a confidence score`));
+  }
   return detail;
+}
+function renderGraph(host, trace, references = []) {
+  const section = node("section");
+  section.append(node("h3", "Graph evidence paths"));
+  if (!trace.complete)
+    section.append(node("p", `Partial extraction: ${trace.coverage.valid_chunks}/${trace.coverage.total_chunks} chunks validated. Missing graph facts can affect retrieval.`, "hint"));
+  section.append(node("p", "Question entities: " + (trace.matched_entities.map((e) => `${e.label} (${e.matched_by})`).join(", ") || "none")));
+  if (trace.reason) section.append(node("p", trace.reason));
+  const cited = new Set(references.flatMap((r) => r.origins?.graph?.path_ids || []));
+  const paths = cited.size ? trace.paths.filter((p) => cited.has(p.id)) : trace.paths;
+  section.append(node("p", cited.size ? "Paths attached to cited references:" : "Retrieved paths (not a claim that an answer used every path):"));
+  const chunks = new Map((trace.chunks || []).map((c) => [c.id, c]));
+  for (const path of paths.slice(0, 20)) {
+    const view = node("details", undefined, "graph-path");
+    view.append(node("summary", path.nodes.map((n) => n.label).join(" → ")));
+    const labels = new Map(path.nodes.map((n) => [n.id, n.label]));
+    for (const edge of path.edges) {
+      view.append(node("p", `${labels.get(edge.subject_id)} — ${edge.relation} → ${labels.get(edge.object_id)} (walk ${edge.direction})`));
+      if (edge.condition_quote) view.append(node("p", "Condition: " + edge.condition_quote));
+      for (const proof of edge.evidence) {
+        const passage = node("details");
+        const rank = trace.fused_chunk_ranks?.[proof.chunk_id];
+        passage.append(node("summary", `${proof.source_document} · characters ${proof.quote_start}–${proof.quote_end} · ${rank ? "fused rank " + rank : "outside final fused selection"}`));
+        passage.append(node("blockquote", proof.quote));
+        const chunk = chunks.get(proof.chunk_id);
+        if (chunk) passage.append(node("pre", chunk.text));
+        view.append(passage);
+      }
+    }
+    if (!path.edges.length) {
+      view.append(node("p", "Direct entity match; source chunks:"));
+      for (const id of path.chunk_ids) {
+        const chunk = chunks.get(id);
+        if (chunk) { const passage = node("details"); passage.append(node("summary", `${chunk.name} · ${id}`), node("pre", chunk.text)); view.append(passage); }
+      }
+    }
+    section.append(view);
+  }
+  if (paths.length > 20) section.append(node("p", `Showing 20 of ${paths.length} paths.`));
+  if (trace.traversal_limit_reached) section.append(node("p", "The bounded traversal reached its exploration limit."));
+  host.append(section);
 }
 refresh().catch((e) => status(e.message, true));
 api("evaluation")
@@ -219,7 +278,11 @@ $("load-corpus").onclick = () =>
     document.querySelectorAll(".doc input").forEach((c) => {
       c.checked = ids.has(c.value);
     });
-    status("Corpus loaded and selected.");
+    const kestrel = $("eval-corpus").value === "kestrel";
+    $("retriever-dense").checked = kestrel;
+    $("retriever-bm25").checked = true;
+    $("retriever-graph").checked = kestrel;
+    status(`Corpus loaded. Measured default: ${kestrel ? "dense + BM25 + graph (Recall@5 0.76, two-hop 0.78)" : "BM25 (Recall@5 0.92)"}. You can change the retrievers above.`);
   });
 function downloadJSON(data, filename) {
   const url = URL.createObjectURL(
@@ -253,6 +316,8 @@ function showRun(runId, result) {
       JSON.stringify(
         {
           settings: result.settings,
+          retrieval: result.retrieval,
+          question_set: result.question_set,
           overall: result.overall,
           by_type: result.by_type,
         },
@@ -271,6 +336,9 @@ function showRun(runId, result) {
     const detail = node("details");
     detail.append(node("summary", `${row.id} / ${row.type}: ${row.question}`));
     detail.append(node("p", `Expected: ${row.expected_answer}`));
+    if (row.retrieval_seconds !== undefined)
+      detail.append(node("p", `Retrieval ${(row.retrieval_seconds * 1000).toFixed(2)} ms · LLM calls ${row.llm_calls}`));
+    if (row.graph_trace) renderGraph(detail, row.graph_trace, row.response?.references || []);
     detail.append(
       node(
         "pre",
@@ -376,15 +444,13 @@ $("evaluate").onclick = () =>
     status(
       "Running evaluation… Hosted generation, if selected, may take several minutes.",
     );
-    const data = await api(
-      "evaluations",
-      post({
-        corpus: $("eval-corpus").value,
-        settings: payload().settings,
-        answers: $("eval-answers").checked,
-        no_context: $("eval-no-context").checked,
-      }),
-    );
+    const retrieval = retrievalConfig();
+    const hosted = $("eval-answers").checked || $("eval-no-context").checked;
+    if (hosted && (retrieval.retrievers.join() !== "dense" || $("eval-question-set").value !== "v2"))
+      throw new Error("Hosted review supports original dense V2 only. Clear hosted options for a V3 retrieval evaluation.");
+    const body = {corpus: $("eval-corpus").value, settings: payload().settings};
+    const data = hosted ? await api("evaluations", post({...body, answers: $("eval-answers").checked, no_context: $("eval-no-context").checked}))
+      : await api("evaluations/v3", post({...body, retrieval, question_set: $("eval-question-set").value}));
     showRun(data.run_id, data.result);
     status("Evaluation saved. Review per-question results and any errors.");
   });

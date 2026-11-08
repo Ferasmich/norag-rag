@@ -1,6 +1,6 @@
-# Evidence — EPITA RAG V2
+# Evidence — EPITA RAG V3
 
-A local web application for asking questions about selected `.txt` and `.md` documents, with inspectable evidence. V2 retains V1’s fixed character windows and dense cosine retrieval, and adds the C7 two-corpus evaluation and Words analytics. Assignment deadline: **November 3, 2026, 11:59 a.m.**
+A local web application for asking questions about selected `.txt` and `.md` documents, with inspectable evidence. V3 adds persistent BM25, configurable rank fusion and an evidence-grounded Kestrel Concept Graph to the V2 dense application. V1/V2 evaluation artifacts remain unchanged. Final measured results, defaults and analysis are in [REPORT.md](REPORT.md), section "V3 final".
 
 ## Features and architecture
 
@@ -21,6 +21,117 @@ The professor’s upstream updates are included alongside the V2 web application
 - [Two-hop concept graph challenge](concepts/concept_graph_challenge_part1.md): the new retrieval exercise.
 
 These standalone course demos are separate from the V2 web application and its measured evaluation results.
+
+## V3 Phase 1: reusable BM25 retrieval
+
+The application now offers local lexical retrieval through `RagService.index_bm25()`
+and `retrieve_bm25()`, and `POST /api/bm25/index` / `POST /api/bm25/search`.
+Both use existing document IDs and chunk settings. Load either course corpus through
+`POST /api/corpora/kestrel` or `POST /api/corpora/vellora`, then pass its returned IDs.
+Legacy dense search and V2 evaluation commands retain their existing behavior.
+The opt-in Phase 2 API and CLI below add retriever selection and fusion.
+
+BM25 snapshots physically live in `data/bm25/<fingerprint>.json` by default,
+or `$RAG_DATA_DIR/bm25/` when configured. Restarting loads saved token counts;
+it does **not** retokenize/rebuild a valid index. Missing, corrupt or incompatible
+snapshots rebuild on demand. `POST /api/bm25/index?rebuild=true` forces a rebuild.
+See [BM25 storage, tokenization and API documentation](bm25/README.md#application-bm25-v3-phase-1)
+and [Phase 1 implementation report](reports/V3_PHASE1_BM25.md).
+
+## V3 Phase 2: dense + BM25 RRF
+
+`RagService.retrieve_configured(question, document_ids, settings, retrieval)` and
+`POST /api/retrieve` provide dense-only, BM25-only, or dense+BM25 retrieval.
+The legacy `/api/search`, `/api/ask` requests without retrieval configuration, and `evaluation.v2` retain dense behavior. The frontend now provides dense/BM25/graph controls; `/api/ask` accepts optional retrieval configuration and `/api/evaluations/v3` runs retrieval-only evaluation. No hosted generation occurs in the V3 evaluator.
+
+```bash
+# Standard V3 retrieval evaluation; choose a new output name for each run.
+python -m evaluation.v3 --corpus kestrel --retrievers dense bm25 \
+  --candidate-depth 20 --rrf-k 60 --top-k 5 \
+  --output evaluation/results/v3/kestrel-dense-bm25.json
+python -m evaluation.v3 --corpus vellora --retrievers bm25 \
+  --output evaluation/results/v3/vellora-bm25.json
+python -m evaluation.v3 --corpus kestrel --retrievers dense \
+  --output evaluation/results/v3/kestrel-dense.json
+```
+
+Plain RRF sums `1/(rrf_k + rank)` with 1-based ranks, one contribution per chunk
+per retriever and canonical chunk-ID deduplication. Ties sort by chunk ID.
+Each result contains `origins` (retriever ranks/raw scores), `fused_rank` and
+`rrf_score`. The default rank constant is 60, independent of final `--top-k`.
+`--candidate-depth` is the maximum per-retriever list length before fusion;
+it must be at least final top-k. Evaluation additionally requires depth >=10,
+scores prefixes 1/3/5/10 and saves `selected` as the final top-k prefix.
+Rankings for metrics and selection come from one retrieval snapshot per question.
+
+API request example (replace IDs with existing uploaded source IDs):
+
+```json
+{
+  "document_ids": ["SOURCE_ID"],
+  "question": "What does KST-2044 mean?",
+  "settings": {"chunk_size": 800, "chunk_overlap": 80, "top_k": 5},
+  "retrieval": {"retrievers": ["dense", "bm25"], "candidate_depth": 20, "rrf_k": 60}
+}
+```
+
+The response contains `results` plus configuration and per-retriever status/counts.
+Missing/corrupt BM25 snapshots rebuild using Phase 1's policy and report
+`index_rebuilt: true`. An empty list is reported as `empty`; failure of an enabled
+retriever aborts the request/run rather than switching to another configuration.
+The new dense path queries all selected chunks before resolving score ties and
+truncating candidates; this ensures deterministic cutoff membership at the current
+small corpus scale. The original dense path is unchanged.
+
+See [Phase 2 implementation report](reports/V3_PHASE2_RRF.md) for tests, reproduced
+V2 baselines, measured CLI results and limitations. Existing output files are refused;
+new evaluations never overwrite frozen V1/V2 artifacts.
+
+## V3: switching retrievers, building the graph, running the evaluation
+
+Final V3 results, defaults and analysis: [REPORT.md](REPORT.md), section "V3 final".
+
+### Switch retrievers on and off
+
+- **UI:** in the retrieval panel, tick any of *Dense*, *BM25*, *Graph*. Results are fused with RRF over the ticked retrievers. Each citation shows which retriever(s) found it and at which rank; with *Graph* on, the answer panel shows the entities found in the question, the edges followed (with conditions) and the source chunks. Loading a corpus selects the measured default: Kestrel → dense + BM25 + graph, Vellora → BM25.
+- **API:** `POST /api/ask` with `"retrieval": {"retrievers": ["dense", "bm25", "graph"], "candidate_depth": 20, "rrf_k": 60}`.
+- **CLI:** `python -m evaluation.v3 --retrievers dense bm25 graph …` (any subset). The graph is Kestrel-only.
+
+### Build the Kestrel Concept Graph (recipe v2)
+
+Needs `GOOGLE_API_KEY` in `.env`. Sends the 43 Kestrel chunks to Gemini once; results are cached, so a resume or rebuild only calls the API for missing chunks.
+
+```bash
+# 1. Plan only: chunk count, estimated tokens and cost; no API call.
+python -m rag_app.graph plan  --recipe v2 --model gemini-3.6-flash --max-output-tokens 8192 --max-calls 90
+# 2. Build (explicit approval flag; paced for rate limits; resumable).
+python -m rag_app.graph build --recipe v2 --model gemini-3.6-flash --max-output-tokens 8192 \
+  --max-calls 90 --max-attempts 3 --approve-external --pace 8 --backoff 30
+# 3. Export the portable, committed bundle used by the app.
+python -m rag_app.graph export --recipe v2 --model gemini-3.6-flash --max-output-tokens 8192 \
+  --max-calls 90 --max-attempts 3 --out concepts/kestrel_graph_v2
+# Inspect offline
+python -m rag_app.graph inspect --graph-path concepts/kestrel_graph_v2/graph.json
+```
+
+`scripts/v3_graph_v2.sh` runs plan → build (with automatic resume) → export → 10-triple review sample → all evaluations → tests. The app loads `concepts/kestrel_graph_v2/graph.json` (override with `RAG_GRAPH_PATH`); it never builds a graph at start-up. The first, partial v1 graph stays in `concepts/kestrel_graph/` for comparison.
+
+Manual extraction-quality review: `python -m rag_app.graph_review prepare --output evaluation/graph_review/<name>-ungraded.json` creates a random sample and a blank `-GRADES.csv`; after it is filled in, `python -m rag_app.graph_review collect --output …-ungraded.json` records the grades verbatim.
+
+### Run the evaluation
+
+Retrieval only (no LLM calls): HitRate@k and Recall@k for k = 1, 3, 5, 10, overall and per question type, plus latency.
+
+```bash
+G="--graph-path concepts/kestrel_graph_v2/graph.json"
+python -m evaluation.v3 --corpus kestrel --question-set v3 --retrievers dense               --output out/k-dense.json
+python -m evaluation.v3 --corpus kestrel --question-set v3 --retrievers dense bm25          --output out/k-dense-bm25.json
+python -m evaluation.v3 --corpus kestrel --question-set v3 --retrievers dense bm25 graph $G --output out/k-all.json
+python -m evaluation.v3 --corpus vellora --question-set v2 --retrievers dense bm25          --output out/v-dense-bm25.json
+python evaluation/results/v3/graph_v2_final_2026-11-08/analyze.py out/   # tables.md, by_type.csv, per_question.csv
+```
+
+Options: `--candidate-depth` (per retriever, default 20), `--rrf-k` (default 60), `--top-k` (default 5). Existing output files are never overwritten. `scripts/v3_seedfix_eval.sh` reproduces the final Kestrel runs.
 
 ## Installation
 
@@ -112,7 +223,7 @@ Bad uploads/settings/questions produce 400/413/422 errors; missing documents pro
 
 V1 dense retrieval misses some exact codes and boundary-spanning facts. There is no calibrated relevance threshold; evidence sufficiency is decided by the prompted LLM. Schema validation checks structure and citation membership, not whether every factual statement follows from a cited passage. Prompt instructions reduce but cannot eliminate hallucination or document prompt injection. Long/token-dense chunks may be truncated by MiniLM's 256-wordpiece limit even within the character cap. Similarities are not probabilities.
 
-This release has no authentication, multi-user isolation, background indexing, hybrid search, reranking, cost dashboard or V3–V4 features. Source passages and the question are sent to Google for generation. It is intended for loopback use with non-sensitive course material. Single-process indexing serializes retrieval; first indexing can take time. Old parameter-specific indexes remain until their documents are deleted. Browser smoke testing reached the V2 tabs and corpus loading; full result rendering, Words interaction and responsive layout remain unverified after browser access timed out. API workflows and JS syntax were verified.
+This application has no authentication, multi-user isolation, background indexing, reranking or cost dashboard. Source passages and the question are sent to Google for generation. It is intended for loopback use with non-sensitive course material. Single-process indexing serializes retrieval; first indexing can take time. Old parameter-specific indexes remain until their documents are deleted. Browser smoke testing reached the V2 tabs and corpus loading; full result rendering, Words interaction and responsive layout remain unverified after browser access timed out. API workflows and JS syntax were verified.
 
 See `REPORT.md` for decisions and observed failures, `reports/RAG_V2_IMPLEMENTATION_REPORT.md` for current delivery evidence and Git status, and the preserved V1 report for historical evidence.
 

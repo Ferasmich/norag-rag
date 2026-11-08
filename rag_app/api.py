@@ -5,12 +5,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from .models import Question, Selection, WordsRequest, EvaluationRequest, GradeRequest
+from .models import Question, Selection, WordsRequest, EvaluationRequest, GradeRequest, RetrievalQuestion, V3EvaluationRequest
 from .service import MAX_BYTES, ROOT, PipelineError, RagService
 
 
 def create_app(service=None):
-    app = FastAPI(title='Evidence / RAG V2')
+    app = FastAPI(title='Evidence / RAG V3')
     app.state.rag = service or RagService()
 
     @app.exception_handler(PipelineError)
@@ -45,8 +45,10 @@ def create_app(service=None):
         return app.state.rag.index(body.document_ids, body.settings)
 
     @app.post('/api/ask')
-    def ask(body: Question):
-        return app.state.rag.ask(body.question, body.document_ids, body.settings)
+    def ask(body: RetrievalQuestion):
+        if 'retrieval' not in body.model_fields_set:
+            return app.state.rag.ask(body.question, body.document_ids, body.settings)
+        return app.state.rag.ask_configured(body.question, body.document_ids, body.settings, body.retrieval)
 
     @app.get('/api/evaluation')
     def evaluation():
@@ -63,10 +65,31 @@ def create_app(service=None):
         from .words import analyze
         return analyze(app.state.rag, body.document_ids, body.settings, body.question, body.word)
 
+    @app.post('/api/retrieve')
+    def retrieve_configured(body: RetrievalQuestion):
+        return app.state.rag.retrieve_configured(body.question, body.document_ids,
+                                                body.settings, body.retrieval)
+
+    @app.post('/api/bm25/index')
+    def index_bm25(body: Selection, rebuild: bool = False):
+        return app.state.rag.index_bm25(body.document_ids, body.settings, rebuild)
+
+    @app.post('/api/bm25/search')
+    def search_bm25(body: Question):
+        return app.state.rag.retrieve_bm25(body.question, body.document_ids, body.settings)
+
     @app.get('/api/question-sets')
     def question_sets():
         from evaluation.v2 import questions
         return {name: questions(name) for name in ('kestrel', 'vellora')}
+
+    @app.post('/api/evaluations/v3')
+    def evaluate_v3(body: V3EvaluationRequest):
+        from evaluation.v3 import run
+        from evaluation.v2 import save
+        result = run(body.corpus, body.settings, body.retrieval, body.question_set, app.state.rag.graph_path)
+        run_id = save(result, app.state.rag.root/'evaluations')
+        return dict(run_id=run_id, result=result)
 
     @app.post('/api/corpora/{corpus}')
     def load_corpus(corpus: str):
@@ -75,15 +98,29 @@ def create_app(service=None):
         files = sorted(corpus_dir(corpus).glob('*.md')) if corpus == 'kestrel' else [ROOT/'docs'/'vellora-duo-espresso-machine.txt']
         return [app.state.rag.upload(p.name, p.read_bytes()) for p in files]
 
+    def measured_files():
+        import json
+        root = ROOT/'evaluation/results'
+        allowed = {}
+        for p in root.rglob('*.json'):
+            if not p.resolve().is_relative_to(root.resolve()): continue
+            try:
+                data = json.loads(p.read_text())
+                if isinstance(data, dict) and isinstance(data.get('results'), list) and data.get('corpus') in ('kestrel', 'vellora'):
+                    allowed[p.relative_to(root).as_posix()] = p
+            except (OSError, ValueError):
+                continue
+        return allowed
+
     @app.get('/api/measured-runs')
     def measured_runs():
-        return sorted(p.name for p in (ROOT/'evaluation'/'results').glob('*.json'))
+        return sorted(measured_files())
 
-    @app.post('/api/measured-runs/{filename}')
+    @app.post('/api/measured-runs/{filename:path}')
     def open_measured_run(filename: str):
         import json
         from evaluation.v2 import save
-        allowed = {p.name: p for p in (ROOT/'evaluation'/'results').glob('*.json')}
+        allowed = measured_files()
         if filename not in allowed:
             raise PipelineError('Measured run not found.', 404)
         result = json.loads(allowed[filename].read_text())
@@ -136,6 +173,10 @@ def create_app(service=None):
     @app.get('/about', response_class=HTMLResponse)
     def about():
         return '<!doctype html><html lang="en"><meta charset="utf-8"><title>About</title><p style="font-size:2rem">Denis Amselemovitch is an intriguing character who likes to make impromptu appearances in incongruous places.</p></html>'
+
+    @app.get('/bm25', response_class=HTMLResponse, include_in_schema=False)
+    def bm25_page():
+        return '<!doctype html><html lang="en"><meta charset="utf-8"><title>BM25</title><p style="font-size:3rem">Watch your sources!</p></html>'
 
     app.mount('/', StaticFiles(directory=ROOT / 'rag_app' / 'static', html=True), name='frontend')
     return app

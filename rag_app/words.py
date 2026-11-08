@@ -1,13 +1,8 @@
 """Exact lexical inspection of selected chunks; no embedding/model calls."""
-import re
 from collections import Counter
 
+from .lexical import tokens
 from .service import chunks
-
-
-def tokens(text):
-    # Keep error identifiers/apostrophes together; Unicode letters, case insensitive.
-    return re.findall(r"[^\W_]+(?:[-'’][^\W_]+)*", text.casefold())
 
 
 def analyze(service, ids, settings, question='', word=''):

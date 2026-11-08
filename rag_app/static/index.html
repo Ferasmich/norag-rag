@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Evidence — RAG V2</title>
+    <title>Evidence — RAG V3</title>
     <link rel="stylesheet" href="/style.css" />
     <script src="/app.js" defer></script>
   </head>
   <body>
     <header>
       <a class="brand" href="/">e<span>•</span>vidence</a
-      ><span class="badge">EPITA / RAG V2</span>
+      ><span class="badge">EPITA / RAG V3</span>
     </header>
     <main>
       <div class="intro">
@@ -44,6 +44,14 @@
           </section>
           <section>
             <h2>02 / Retrieval settings</h2>
+            <fieldset>
+              <legend>Retrievers</legend>
+              <label><input id="retriever-dense" type="checkbox" checked /> Dense</label>
+              <label><input id="retriever-bm25" type="checkbox" /> BM25</label>
+              <label><input id="retriever-graph" type="checkbox" /> Concept graph (Kestrel)</label>
+            </fieldset>
+            <label>Candidate depth per retriever<input id="candidate-depth" type="number" min="1" max="10000" value="20" /></label>
+            <label>RRF rank constant<input id="rrf-k" type="number" min="0" max="1000000" value="60" /></label>
             <label
               >Chunk size <span>characters · 100–1,000</span
               ><input
@@ -121,6 +129,8 @@
                 <option value="vellora">Vellora (V1 corpus)</option>
               </select></label
             >
+            <label>Question set<select id="eval-question-set"><option value="v2">Original V2 (unchanged)</option><option value="v3">V3 (two additional Kestrel chains)</option></select></label>
+            <p class="hint">Retriever selections above also apply here. V3 evaluations are retrieval-only. Hosted answer/no-context review below remains available for original dense V2 only.</p>
             <button id="load-corpus" class="secondary">
               Load corpus into library
             </button>

@@ -225,3 +225,160 @@ Feras M explicitly confirmed all 15 proposed no-context judgments in chat after 
 This is a follow-up on main, not a new release. The existing annotated v2 tag remains object `07ff1e7d3262b4fbbb589eb97921cfa1803d1d20`, pointing to release commit `2a223476c8df74ae6e0464fada5c277f39aaa984`. Main is expected to advance beyond that tag. No evaluation questions, model responses, retrieval metrics or application code changed.
 
 Follow-up validation: 40 tests passed in 8.26 seconds; all 15 confirmations and original AI/Kestrel artifact integrity checked; git diff whitespace check passed.
+
+
+## V3 implementation, human review and final retrieval comparison — 8 November 2026
+
+> **Superseded** by "V3 final — rebuilt Concept Graph" below. This section describes the first, partial graph (v1, flash-lite, 10 relations). Its ten grades were AI-drafted reasons confirmed in chat, over the whole 10-relation graph rather than a sample; they are not the submitted extraction-quality review.
+
+V3 now provides persistent BM25 on both corpora, independent dense/BM25/graph retrieval, equal-weight RRF, UI/CLI selection, citation origin/rank and graph-path/source inspection. Fixed typed graph extraction, conservative entity resolution, durable provenance/cache/quarantine, capped resumable builds and costs are documented in [the final integration report](reports/V3_FINAL_INTEGRATION.md). That report includes overall and per-type HitRate/Recall at 1/3/5/10, failures, latency, decisions and exact reproducible commands.
+
+The approved Gemini extraction used exactly 43 attempts, with 29 strict-valid responses (27 empty), 10 validation rejections and four provider failures. The partial published graph has 17 entities / 10 relations: nine relations use explicitly annotated offline source-context expansion of existing model proposals. Feras M graded all ten retained relations correct; the random sample population is only those ten, not the raw outputs. Known usage is 50,239 input / 1,845 output tokens, estimated $0.0196842; full cost is unavailable because four failed requests lack usage. No follow-up calls were made.
+
+Kestrel V3 (12 questions, 10 answerable): HitRate/Recall@5 is dense 90%/75%, BM25 80%/55.8%, dense+BM25 90%/74.2%, graph 20%/11.7%, all three 90%/70.8%. Vellora (original 15, 12 answerable): dense 58.3%/58.3%, BM25 and dense+BM25 91.7%/91.7%. Defaults are therefore dense for Kestrel and BM25 for Vellora. q01 improves with lexical fusion; q05 loses evidence; q12 loses its ledger support with the graph vote. Graph candidate top-5 survival rises from 12/18 at depth20 to 17/18 at depth40, while Recall@5 falls to 50.8%; depth20 is retained. No graph benefit or completeness is invented.
+
+Two append-only Kestrel multi-hop questions are supplied; original datasets/results remain unchanged. Final nine retrieval runs use zero LLM calls and report literal annotation recall rather than exhaustive relevance. All 144 tests passed in 11.96s, including four V2 dense baseline reproductions on both legacy/configured paths. Browser verification remains unavailable; no new hosted answer-quality grading was performed. [Final verification](reports/V3_FINAL_VERIFICATION.md) records the release checks. This supersedes earlier historical statements that no V3 functionality exists. Commit, v3 tag, push and actual submission remain pending owner approval.
+
+## V3 final — rebuilt Concept Graph, hybrid retrieval and evaluation (8 November 2026)
+
+This section is the V3 submission report. It supersedes the V3 numbers above.
+
+### Results table (Recall@k / HitRate@k)
+
+Retrieval-only evaluation, 800/80 chunks, final top-k 5, candidate depth 20 per retriever, RRF k = 60. Kestrel uses the V3 question set (12 questions, 10 answerable: the 10 original V2 questions plus q11, q12); Vellora uses the unchanged V2 set (15 questions, 12 answerable). Recall@k = fraction of a question's annotated evidence quotes found in the top k (so for two_hop it tells whether *all* hops were retrieved). Zero LLM calls at query time in every configuration. Raw runs: `evaluation/results/v3/graph_v2_seedfix_2026-11-08/` (Kestrel, final graph + seed fix) and `evaluation/results/v3/graph_v2_final_2026-11-08/` (Vellora, BM25, and the before-fix graph runs).
+
+**Overall**
+
+| Corpus | Retrievers on | R@1 | R@3 | R@5 | R@10 | Hit@5 | Hit@10 | Median latency |
+|---|---|---|---|---|---|---|---|---|
+| Kestrel | dense (V2 baseline) | 0.36 | 0.72 | 0.75 | 0.95 | 0.90 | 1.00 | 12.8 ms |
+| Kestrel | BM25 | 0.25 | 0.56 | 0.56 | 0.78 | 0.80 | 0.90 | 2.5 ms |
+| Kestrel | dense + BM25 | 0.21 | 0.54 | 0.74 | 0.95 | 0.90 | 1.00 | 15.2 ms |
+| Kestrel | graph | 0.17 | 0.38 | 0.38 | 0.42 | 0.50 | 0.50 | 2.2 ms |
+| Kestrel | dense + graph | 0.22 | 0.62 | **0.82** | 0.97 | 0.90 | 1.00 | 15.1 ms |
+| Kestrel | **dense + BM25 + graph (default)** | 0.25 | 0.49 | **0.79** | **1.00** | 0.90 | 1.00 | 17.6 ms |
+| Kestrel | dense + BM25 + graph, depth 40 | 0.25 | 0.52 | 0.64 | 0.90 | 0.80 | 0.90 | 17.7 ms |
+| Kestrel | dense + BM25 + *v1 graph* | 0.14 | 0.42 | 0.71 | 0.95 | 0.90 | 1.00 | 17.3 ms |
+| Vellora | dense (V2 baseline) | 0.50 | 0.50 | 0.58 | 0.83 | 0.58 | 0.83 | 10.8 ms |
+| Vellora | **BM25 (default)** | 0.67 | 0.92 | **0.92** | 0.92 | 0.92 | 0.92 | 2.2 ms |
+| Vellora | dense + BM25 | 0.58 | 0.75 | 0.92 | 0.92 | 0.92 | 0.92 | 12.9 ms |
+
+**Recall@5 by question type** (n = answerable questions of that type; not_in_corpus questions have no evidence and are excluded from Recall/Hit, as in V2)
+
+| Corpus | Retrievers | exact_identifier | split_answer | vocabulary | versions | two_hop |
+|---|---|---|---|---|---|---|
+| Kestrel (n) | | 2 | 2 | 1 | 2 | 3 |
+| Kestrel | dense | 0.50 | 1.00 | 1.00 | 1.00 | 0.50 |
+| Kestrel | BM25 | 0.25 | 0.62 | 0.00 | 1.00 | 0.61 |
+| Kestrel | dense + BM25 | 1.00 | 0.62 | 0.00 | 1.00 | 0.72 |
+| Kestrel | graph | 0.25 | 0.50 | 0.00 | 0.00 | 0.78 |
+| Kestrel | dense + graph | 0.25 | 1.00 | 1.00 | 1.00 | 0.89 |
+| Kestrel | dense + BM25 + graph | 1.00 | 0.62 | 0.00 | 1.00 | **0.89** |
+| Vellora (n) | | 4 | – | 4 | – | – |
+| Vellora | dense | 0.50 | – | 0.50 | – | – |
+| Vellora | BM25 | 1.00 | – | 1.00 | – | – |
+| Vellora | dense + BM25 | 1.00 | – | 1.00 | – | – |
+
+All k (1/3/5/10), HitRate and Recall per type are in each run folder's `tables.md`, `by_type.csv` and `per_question.csv`.
+
+### Default configuration, and why
+
+- **Kestrel: dense + BM25 + graph, top-k 5, depth 20, RRF k 60.** It raises Recall@5 from 0.75 (V2 dense) to 0.79 and Recall@10 to 1.00. The gain is concentrated where it was designed to be: two_hop Recall@5 goes from 0.50 to 0.89, and exact identifiers from 0.50 to 1.00 (BM25). dense + graph has a higher overall Recall@5 (0.82) but drops exact_identifier to 0.25 (q02), which is the "E47" failure the course started from; with 10 answerable questions, that 0.03 difference is less than one question, so I chose the configuration without a hole on a whole question type. Cost per question: 0 LLM calls, 0 tokens, +4.8 ms median retrieval latency over dense. The graph costs one build (below).
+- **Trade-off:** Recall@1 (0.25 vs 0.36) and Recall@3 (0.49 vs 0.72) are worse than dense alone; fusion spreads the top ranks over three voters. With a top-k of 3 dense would win; at our top-k of 5 the hybrid wins.
+- **Vellora: BM25 alone.** Recall@5 0.92 vs 0.58 for dense; dense + BM25 ties at k = 5 but is worse at k = 1 and 3. No graph on Vellora (not required; the corpus is a single manual).
+- The UI selects these defaults when a corpus is loaded; every retriever can still be switched on/off in the UI and with `--retrievers` on the CLI.
+
+### BM25: index, tokenization, updates
+
+Full detail: [Phase 1 BM25 report](reports/V3_PHASE1_BM25.md) and [bm25/README.md](bm25/README.md). Summary:
+
+- **Where it lives:** a persisted JSON snapshot per (selected documents, chunk settings, tokenizer/BM25 version), at `data/bm25/<fingerprint>.json` (or `$RAG_DATA_DIR/bm25/`). It stores canonical chunk rows, per-chunk term counts and a SHA-256; it is written atomically. A restart loads and validates it without re-tokenizing. This replaces the naive in-memory index of the original norag-rag script.
+- **Built from:** the *same* canonical chunks and IDs as dense (`document_sha256:start:end`), so RRF can fuse by ID.
+- **Tokenization:** Unicode casefold + the existing Words regex; hyphens are kept inside tokens, so `KST-2044` is one token and does not match `KST-2040`. No stemming, stop words or synonyms (this is exactly why BM25 fails on vocabulary questions). BM25 k1 = 1.5, b = 0.75; deterministic tie-break on chunk ID.
+- **Updates:** a changed document gets a new content ID, hence a new snapshot; deleting a document invalidates all BM25 snapshots (rebuilt lazily). Explicit rebuild: `POST /api/bm25/index?rebuild=true`.
+- **Options considered:** in-memory per request (simplest, but rebuilds every time), Chroma/SQLite full-text search (FTS5), or a search engine (Elasticsearch/OpenSearch). A JSON snapshot was enough for a 43-chunk corpus and keeps the scoring code inspectable; FTS5 would be the next step for larger corpora.
+- Hidden page: `GET /bm25` shows "Watch your sources!" in a large font and is not linked anywhere in the front end.
+
+### The Concept Graph
+
+**Build (recipe v2).** `python -m rag_app.graph build --recipe v2 --model gemini-3.6-flash --approve-external …` (full commands in README). Each of the 43 Kestrel chunks (800/80, identical to retrieval chunks) is sent once to Gemini through the OpenAI-compatible endpoint, with temperature 0 and JSON output. The chunk is sent together with its **Markdown heading path** (e.g. `## Connectors (KST-2xxx) > ### KST-2040 — Connection timed out`) and, inside tables, the table header row. The heading path is computed locally, without an LLM.
+
+**Schema: fixed, not open.** 10 entity types (ErrorCode, Service, Team, Channel, Feature, Plan, Role, Policy, Rule, Value) and 10 relation types (RAISED_BY, OWNED_BY, CONTACT_CHANNEL, ESCALATE_TO, PROVIDES, AVAILABLE_ON, HAS_RULE, HAS_VALUE, REQUIRES, REPLACED_BY), each with allowed endpoint types and direction (`rag_app/graph_schema.py`). Why fixed: the questions are about support routing (error → service → team → channel) and plans; a fixed schema makes every edge checkable and traversal predictable. An open schema (GraphRAG/LightRAG style) finds more, but produces near-duplicate relation names ("is owned by", "belongs to", "managed by") that then need their own resolution step. The cost of the choice: facts outside the schema are lost — see "where it fails".
+
+**Validation (Pydantic, strict).** Every triple must: parse against the schema; use allowed endpoint types and direction; have an `evidence_quote` that is a literal substring of the chunk; name at least one endpoint in the quote, the other either in the quote or in the heading path *at the quote's position* (not the chunk start: a chunk can end one `###` section and start another); error codes must be complete `KST-0000`. Conditions ("only if…") must be substrings of the quote. **When an item does not validate, only that item is dropped and logged** (v1 rejected the whole chunk response, losing 10 of 43 chunks). Malformed JSON still rejects the response, which is quarantined, and the chunk is retried on resume. In the final build: 0 rejected responses, 0 dropped items.
+
+**Provenance.** Every node and edge lists provenance records: chunk ID, document, exact quote with character offsets, model, response ID, prompt hash, and — when an endpoint came from the heading — the heading path (`context_heading`, 11 edges). Retrieval re-verifies every quote against its chunk at load time and refuses a graph whose checksum does not match.
+
+**Entity resolution.** Conservative: two mentions are the same entity only if they have the same type and the same normalized label (casefold, whitespace, dash variants), or an explicit alias statement in the text ("also known as", "stands for"). Policies and rules are scoped to their document, so the 2025 and 2026 Billing and Refund Policies stay two nodes. No fuzzy or embedding similarity.
+- *Merge I got right:* "Analytics Engine" appears in the owner lines of `query-engine` and `scheduler`, the teams table and the KST-3012 runbook section; the 4 mentions merged into one node, which is what lets KST-3012 → Analytics Engine → #oncall-analytics connect across two documents.
+- *Right non-merge:* the two Billing and Refund Policy nodes (2025 vs 2026) are kept apart, which a name-only merge would have broken (versions questions).
+- *Merge I missed:* "single sign-on" (product guide §5.2) and "Single sign-on (SAML)" (plans table) are the same feature but stay two nodes; exact matching cannot see it. Cost: a question that names "single sign-on" only reaches the §5.2 chunk through the graph, not the plans table.
+
+**The graph in numbers.** 42 entities (10 Service, 8 Team, 6 ErrorCode, 6 Feature, 6 Channel, 4 Plan, 2 Policy), 39 relations (14 AVAILABLE_ON, 11 OWNED_BY, 6 CONTACT_CHANNEL, 6 ESCALATE_TO, 1 RAISED_BY, 1 REPLACED_BY: mailman → postroom), 14 merge decisions (all normalized-exact), 17 of 43 chunks contribute at least one relation. For comparison the v1 graph had 17 entities and 10 relations.
+
+**Build cost.** Model `gemini-3.6-flash` ($0.75 / $3.75 per million input/output tokens, checked 8 Nov 2026).
+- Final build: 24 calls, 45,766 input + 3,402 output tokens, $0.047, 406 s (paced 8 s between calls).
+- An earlier run of the same recipe stopped on the free-tier limit (5 requests/minute, ~20/day for this model): 23 calls (19 valid, 2 × HTTP 500, 2 × 429), 35,689 + 2,428 tokens, $0.036, 356 s; its 19 valid extractions were reused from the cache by the final build (`attempts_superseded_partial_build_5d6add.json`). Billing was then enabled on the key.
+- Total for the v2 graph: **47 LLM calls, 81,455 input + 5,830 output tokens (4 failed calls without usage), ≈ $0.083, ≈ 12.7 min**. The v1 graph had cost 43 calls / $0.020 with flash-lite. Query-time cost of graph retrieval: 0 LLM calls.
+
+**Graph retrieval.** Takes the question and returns ranked chunks like the other retrievers. (1) Seeds: entities whose name appears in the question (word boundaries; error codes take priority). A one-word capitalized name ("Team", "Business") must match with its case, so a common word does not seed a plan (fix described below). If nothing matches, a local lexical match over entity names and their evidence quotes (TF-IDF-like, no LLM). (2) Breadth-first traversal up to 3 edges from at most 3 seeds, both directions, at most 12 edges per node, 200 expansions. (3) Each path votes for the chunks of its edges' provenance and its end node, weighted by seed score / (1 + path length). Chunks are ranked by summed votes. The UI shows the matched entities, the edges followed (with conditions) and the source quotes.
+Other options I considered: community summaries (GraphRAG global search) — aimed at "summarize the corpus" questions, not routing; LightRAG-style keyword extraction of the question with an LLM — better seeds (would fix q12) but one LLM call per question; personalized PageRank from the seeds — smoother scores but harder to explain in the UI.
+
+**Extraction quality (manual).** 10 triples drawn with `random.Random(20261108).sample` from the 39 relations, graded by me against the full source chunk: **10 correct / 0 wrong / 0 unsupported**. File: `evaluation/graph_review/kestrel-v2-10-triples.json` (grades and reasons as I wrote them in `kestrel-v2-10-triples-ungraded-GRADES.csv`; the sample with full chunks is in the `.md`). Limits: 7 of the 10 are table rows or owner lines, which are the easy cases; 10/10 on a sample of 10 still leaves room for errors in the other 29 — and there is one (below).
+*How else to evaluate a concept graph:* precision by sampling (done); recall by hand-listing the facts of a few chunks and checking how many are in the graph (the 26 empty chunks show recall is the weak side); entity-resolution precision/recall on name pairs; and the task metric — does the graph move two_hop Recall (it does).
+
+**One bad triple, and what it cost.** `KST-3012 → ESCALATE_TO → "Analytics Eng"`: the chunk ends at character 4400 in the middle of "Analytics Eng|ine". The model copied the truncated name, and my validator accepted it because the label is literally in the quote. It created a separate Team node with no channel, so a path from KST-3012 through it is a dead end (the correct edge to "Analytics Engine" also exists, from the overlapping next chunk). Measured cost on the question set: none, because no question asks about KST-3012; on a real support question about KST-3012 it adds a useless path. Fix: reject labels ending exactly at a chunk boundary inside a word (v1 had this filter in `graph_context.py`; I did not port it to v2).
+
+**Where the graph fails.**
+- *Low recall on policies:* 26 of 43 chunks produced no relation, mostly the billing policies. The schema can express them (Policy → HAS_RULE → Rule → HAS_VALUE → Value), but the model did not use these types, so versions questions get nothing from the graph (graph-alone Recall@5 = 0 on versions).
+- *Few error codes:* only 6 of the 14 runbook codes are in the graph and only 1 RAISED_BY edge; most runbook sections describe the service in prose ("the connector could not…") without the catalog name.
+- *Seeding without a name* (q12, below).
+- *Optional features:* conditions on edges (`condition_quote`, e.g. "only if the customer shows that the bank approved the payment"), REPLACED_BY for service history, explicit-alias support (no alias statements in the corpus), and heading context. Not done: time validity (valid from/until), a graph of the Vellora corpus.
+
+### What happened to the graph's chunks after fusion
+
+| Run | Graph chunks in the graph's own top 5 (sum over 12 questions) | …still in the fused top 5 | Kestrel R@5 |
+|---|---|---|---|
+| v1 graph, depth 20 | – | 12 | 0.71 |
+| v2 graph, depth 20, before seed fix | 41 | 25 | 0.76 |
+| v2 graph, depth 20, seed fix (default) | 42 | **31** | **0.79** |
+| v2 graph, depth 40, seed fix | 42 | 40 | 0.64 |
+
+With the v1 graph, few graph chunks reached the top 5 because the graph had almost nothing to say (10 relations). After the rebuild, about three quarters of them survive. What I changed, and measured: (1) the rebuild itself (12 → 25 surviving, R@5 0.71 → 0.76); (2) the seed fix (25 → 31, R@5 0.76 → 0.79, two_hop 0.78 → 0.89); (3) more candidates, depth 20 → 40: graph survival goes up (31 → 40) but R@5 falls to 0.64, because dense and BM25 also contribute their ranks 21–40 and RRF then rewards chunks that are mediocre in all lists. I kept depth 20 and plain (equal-weight) RRF.
+
+Clearest success: **q08** (KST-5031, which team and where?). The catalog chunk with `#oncall-messaging` is rank 16 in BM25 and rank 20 in dense; the graph follows KST-5031 → RAISED_BY → postroom → OWNED_BY → Messaging → CONTACT_CHANNEL → #oncall-messaging and ranks it 2; after fusion it is rank 2. q08 Recall@5: 0.5 → 1.0. q11 also goes 0.67 → 1.0.
+
+### One question where adding a retriever made things worse
+
+**q12** (two_hop: "Which team's on-call channel should support contact for the service that generates invoice PDFs and runs automatic payment retries?"). dense + BM25: Recall@5 1.0. Adding the graph: 0.67.
+1. *Before the fix* the graph seeded the **Plan "Team"** from the word "team's", followed Team → AVAILABLE_ON → "bank transfer against an invoice" and pushed a billing-policy chunk to rank 1. I made one-word capitalized names case-sensitive, which fixed that seed (and improved q11) — but q12 still loses.
+2. *After the fix* no entity name is in the question (the service, `ledger`, is described, not named), so the lexical fallback seeds on the words "generates", "pdfs", "runs": it picks **scheduler** ("Generates the report PDFs") and Analytics Engine instead of ledger ("Generates invoice PDFs"). Its votes lift the scheduler catalog chunk and a runbook chunk, and push the chunk with "Generates invoice PDFs" from rank 3 to rank 6.
+Lesson: the graph is only as good as its entry point; a described-but-unnamed entity needs semantic seeding (embed entity descriptions, or an LLM to extract the entity) — a planned V4 candidate. Note: the seed fix was motivated by a question of this same 12-question set, so its gain may be optimistic on new questions.
+
+Other regression: **q05** (vocabulary) loses its evidence when BM25 joins dense (1.0 → 0.0): BM25 has no synonyms and its high-ranked keyword matches outvote dense's single correct chunk in RRF.
+
+### Updated question sets
+
+`evaluation/kestrel-v3-additions.jsonl` adds q11 and q12 (two_hop, each with an evidence quote for every hop); q08 was the existing two-hop question, so Kestrel has 3 two_hop questions. `evaluation/kestrel.jsonl` and `evaluation/vellora.jsonl` are unchanged byte for byte; `kestrel-v3.jsonl` is the combined view.
+
+### Decision log (V3)
+
+| Decision | Options | Choice and reason |
+|---|---|---|
+| BM25 storage | in-memory per request; JSON snapshot; SQLite FTS5; Elasticsearch | JSON snapshot keyed by selection/settings: persistent, inspectable, enough at 43 chunks |
+| Fusion | weighted RRF; score normalization + sum; RRF | plain RRF, k = 60: rank-based, no score calibration between cosine and BM25 |
+| Graph schema | open (LLM decides types); fixed | fixed 10 + 10 types: checkable edges, predictable traversal |
+| Extraction unit | whole document; chunk; chunk + heading | chunk + heading path: provenance stays per retrieval chunk, error code not lost when a section is split |
+| Invalid LLM output | reject response; drop item | drop the item, log it; reject only malformed JSON |
+| Entity resolution | embeddings/fuzzy; LLM judge; exact + explicit alias | exact normalized + explicit alias: no wrong merges, accepts missed ones |
+| Extraction model | flash-lite (v1); 3.6 Flash | 3.6 Flash: v1 flash-lite left 27 of 29 valid chunks empty; v2 costs ≈ $0.08 |
+| Graph seeding | names; lexical fallback; LLM | names (case-sensitive for one-word names) + lexical fallback, no LLM per query |
+| Candidate depth | 20; 40 | 20 (40 measured worse) |
+| Defaults | per corpus | Kestrel dense + BM25 + graph; Vellora BM25 |
+
+### Known failures and limits
+
+- Small evaluation sets: 10 answerable Kestrel and 12 Vellora questions; one question moves Recall@5 by 0.1. Differences under ~0.1 are not meaningful.
+- Graph recall (26 empty chunks, missing policy rules, 6/14 error codes) and the chunk-boundary truncation described above.
+- Generation quality with the new retrievers was not re-graded; V3 measures retrieval only (as requested).
+- The v1 graph and its review are kept for comparison (`concepts/kestrel_graph/`, `evaluation/graph_review/kestrel-10-triples*`); the v1 grades were AI-drafted and chat-confirmed over the whole 10-relation graph, so they are not used as the V3 extraction-quality result.

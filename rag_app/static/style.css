@@ -371,3 +371,7 @@ select {
 .tab-view details {
   margin: 0.7rem 0;
 }
+fieldset { border: 1px solid #c9cec6; border-radius: 8px; padding: 10px; margin-bottom: 12px; }
+fieldset input[type="checkbox"] { width: auto; }
+.graph-path { border-left: 3px solid #718878; padding: 10px; margin: 10px 0; }
+.graph-path blockquote { white-space: pre-wrap; overflow-wrap: anywhere; }

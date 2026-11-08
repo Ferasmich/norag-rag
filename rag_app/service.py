@@ -8,7 +8,7 @@ from threading import RLock
 from dotenv import load_dotenv
 from pydantic import ValidationError
 
-from .models import GeneratedAnswer, Settings
+from .models import GeneratedAnswer, RetrievalConfig, Settings
 
 ROOT = Path(__file__).resolve().parents[1]
 EMBEDDING_MODEL = 'all-MiniLM-L6-v2'
@@ -33,7 +33,7 @@ def chunks(text, settings):
 
 
 class RagService:
-    def __init__(self, data_dir=None, embedder=None, generator=None):
+    def __init__(self, data_dir=None, embedder=None, generator=None, graph_path=None):
         self.root = Path(data_dir or os.getenv('RAG_DATA_DIR', ROOT / 'data'))
         self.documents = self.root / 'documents'
         self.documents.mkdir(parents=True, exist_ok=True)
@@ -41,6 +41,7 @@ class RagService:
         self.embedder = embedder
         self.generator = generator
         self._client = None
+        self.graph_path = graph_path
 
     def client(self):
         if self._client is None:
@@ -135,15 +136,46 @@ class RagService:
         with self.lock:
             self.read(doc_id)
             try:
-                for item in self.client().list_collections():
+                # A lexical-only library need not initialize the dense backend.
+                has_dense_storage = self._client is not None or (self.root / 'chroma').exists()
+                collections = self.client().list_collections() if has_dense_storage else []
+                for item in collections:
                     name = item if isinstance(item, str) else item.name
                     if name.startswith('rag_'):
                         self.client().get_collection(name, embedding_function=None).delete(where={'document_id': doc_id})
                 for marker in self.root.glob(f'rag_*_{doc_id}.ready'):
                     marker.unlink()
+                # Small local snapshots are cheap to rebuild. Clear all selections
+                # so no deleted text remains in a persisted lexical index.
+                for snapshot in (self.root / 'bm25').glob('*.json'):
+                    snapshot.unlink()
                 (self.documents / f'{doc_id}.json').unlink()
             except Exception as exc:
                 raise PipelineError('Deletion failed. Document remains available; retry deletion.') from exc
+
+    def _bm25(self, ids, settings, rebuild=False):
+        from .bm25 import load_or_build
+        rows = []
+        for doc_id in sorted(set(ids)):
+            doc = self.read(doc_id)
+            for start, end, text in chunks(doc['text'], settings):
+                rows.append(dict(id=f'{doc_id}:{start}:{end}', document_id=doc_id,
+                                 name=doc['name'], text=text, start=start, end=end,
+                                 line=doc['text'].count('\n', 0, start)+1))
+        try:
+            return load_or_build(self.root / 'bm25', ids, settings, rows, rebuild)
+        except (OSError, ValueError, TypeError) as exc:
+            raise PipelineError('BM25 index unavailable. Check local storage and retry rebuilding.') from exc
+
+    def index_bm25(self, ids, settings, rebuild=False):
+        with self.lock:
+            _, info = self._bm25(ids, settings, rebuild)
+            return info
+
+    def retrieve_bm25(self, question, ids, settings):
+        with self.lock:
+            index, _ = self._bm25(ids, settings)
+            return index.search(question, settings.top_k)
 
     def retrieve(self, question, ids, settings):
         with self.lock:
@@ -161,6 +193,73 @@ class RagService:
                 raise
             except Exception as exc:
                 raise PipelineError('Similarity search failed. Check embeddings and vector storage.') from exc
+
+    def _dense_candidates(self, question, ids, settings, depth):
+        # Resolve equal-score membership at the cutoff using ALL selected chunks.
+        # The legacy retrieve() path and its approximate top-k behavior stay intact.
+        self.index(ids, settings)
+        count = len(self.collection(settings).get(
+            where={'document_id': {'$in': sorted(set(ids))}})['ids'])
+        if not count:
+            return []
+        # Internal query depth is independent of the public final top-k limit.
+        rows = self.retrieve(question, ids, settings.model_copy(update={'top_k': count}))
+        return sorted(rows, key=lambda row: (-row['similarity'], row['id']))[:depth]
+
+    def retrieve_configured(self, question, ids, settings, retrieval=None):
+        """Opt-in ranked retrieval with provenance; fail if ANY enabled source fails."""
+        from .fusion import reciprocal_rank_fusion
+        retrieval = retrieval or RetrievalConfig()
+        if not ids:
+            raise PipelineError('Select documents for retrieval.', 400)
+        if retrieval.candidate_depth < settings.top_k:
+            raise PipelineError('Candidate depth must be at least final top-k.', 400)
+        with self.lock:
+            rankings, statuses, graph_trace = {}, {}, None
+            for name in retrieval.retrievers:
+                try:
+                    if name == 'dense':
+                        rows = self._dense_candidates(question, ids, settings, retrieval.candidate_depth)
+                        status = {}
+                    elif name == 'bm25':
+                        index, info = self._bm25(ids, settings)
+                        rows = index.search(question, retrieval.candidate_depth)
+                        status = dict(index=info['index'], index_rebuilt=info['rebuilt'])
+                    else:
+                        from .graph_retrieval import GraphIndex, GraphRetrievalError
+                        try:
+                            graph_index = GraphIndex.load(self.graph_path)
+                            # Validate graph snapshots against the actual selected
+                            # library source, never just a model-supplied filename.
+                            for doc_id in sorted(set(ids)):
+                                doc = self.read(doc_id)
+                                for row in graph_index.chunks.values():
+                                    if row['document_id'] == doc_id and doc['text'][row['start']:row['end']] != row['text']:
+                                        raise GraphRetrievalError('Graph source text no longer matches the selected document.')
+                            rows, graph_trace = graph_index.search(question, ids, settings, retrieval.candidate_depth)
+                        except GraphRetrievalError as exc:
+                            raise PipelineError(str(exc), 400 if 'settings' in str(exc) or 'source versions' in str(exc) else 503) from exc
+                        status = dict(build_id=graph_trace['build_id'], complete=graph_trace['complete'],
+                                      coverage=graph_trace['coverage'])
+                    rankings[name] = rows
+                    statuses[name] = dict(status='ok' if rows else 'empty',
+                                          candidate_count=len(rows), **status)
+                    if name == 'graph' and not graph_trace['complete']:
+                        statuses[name]['status'] = 'partial'
+                except PipelineError as exc:
+                    raise PipelineError(f'{name} retrieval failed: {exc}', exc.status) from exc
+                except Exception as exc:
+                    raise PipelineError(f'{name} retrieval failed. Check its index and local storage.') from exc
+            try:
+                results = reciprocal_rank_fusion(rankings, retrieval.rrf_k, settings.top_k)
+            except ValueError as exc:
+                raise PipelineError('Fusion failed: inconsistent retrieved chunk data.', 502) from exc
+            response = dict(results=results, retrieval=retrieval.model_dump(),
+                            top_k=settings.top_k, retrievers=statuses)
+            if graph_trace is not None:
+                graph_trace['fused_chunk_ranks'] = {r['id']: r['fused_rank'] for r in results}
+                response['graph_trace'] = graph_trace
+            return response
 
     def generate(self, question, evidence):
         if self.generator:
@@ -190,6 +289,18 @@ class RagService:
 
     def ask(self, question, ids, settings):
         evidence = self.retrieve(question, ids, settings)
+        return self.answer_from_evidence(question, evidence)
+
+    def ask_configured(self, question, ids, settings, retrieval):
+        result = self.retrieve_configured(question, ids, settings, retrieval)
+        answer = self.answer_from_evidence(question, result['results'])
+        answer['retrieval_status'] = result['retrievers']
+        if 'graph_trace' in result:
+            answer['graph_trace'] = result['graph_trace']
+        return answer
+
+    def answer_from_evidence(self, question, evidence):
+        """Generate once from an already fixed ranking; shared citation validation."""
         if not evidence:
             return dict(answer='No evidence found.', answerable=False, citations=[], references=[], retrieved=[])
         raw = self.generate(question, evidence)
