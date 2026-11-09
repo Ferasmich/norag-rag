@@ -116,19 +116,22 @@ python -m rag_app.graph inspect --graph-path concepts/kestrel_graph_v2/graph.jso
 
 `scripts/v3_graph_v2.sh` runs plan → build (with automatic resume) → export → 10-triple review sample → all evaluations → tests. The app loads `concepts/kestrel_graph_v2/graph.json` (override with `RAG_GRAPH_PATH`); it never builds a graph at start-up. The first, partial v1 graph stays in `concepts/kestrel_graph/` for comparison.
 
-Manual extraction-quality review: `python -m rag_app.graph_review prepare --output evaluation/graph_review/<name>-ungraded.json` creates a random sample and a blank `-GRADES.csv`; after it is filled in, `python -m rag_app.graph_review collect --output …-ungraded.json` records the grades verbatim.
+Manual extraction-quality review: `python -m rag_app.graph_review prepare --output evaluation/graph_review/<name>-ungraded.json` creates a random sample and a blank `-GRADES.csv`; after it is filled in, `python -m rag_app.graph_review collect --output …-ungraded.json` records the grades verbatim. The completed current V3 review is [kestrel-v2-10-triples.json](evaluation/graph_review/kestrel-v2-10-triples.json): Feras M, 10 correct / 0 wrong / 0 unsupported, sampled from 39 relations. Its original ungraded JSON, full-chunk Markdown and filled CSV are preserved beside it. The older `kestrel-10-triples*` review belongs to the superseded first graph.
 
 ### Run the evaluation
 
 Retrieval only (no LLM calls): HitRate@k and Recall@k for k = 1, 3, 5, 10, overall and per question type, plus latency.
 
 ```bash
-G="--graph-path concepts/kestrel_graph_v2/graph.json"
-python -m evaluation.v3 --corpus kestrel --question-set v3 --retrievers dense               --output out/k-dense.json
-python -m evaluation.v3 --corpus kestrel --question-set v3 --retrievers dense bm25          --output out/k-dense-bm25.json
-python -m evaluation.v3 --corpus kestrel --question-set v3 --retrievers dense bm25 graph $G --output out/k-all.json
-python -m evaluation.v3 --corpus vellora --question-set v2 --retrievers dense bm25          --output out/v-dense-bm25.json
-python evaluation/results/v3/graph_v2_final_2026-11-08/analyze.py out/   # tables.md, by_type.csv, per_question.csv
+# Use a fresh directory. Each invocation refuses an existing result filename.
+OUT=$(mktemp -d "${TMPDIR:-/tmp}/rag-v3-eval.XXXXXX")
+python -m evaluation.v3 --corpus kestrel --question-set v3 --retrievers dense               --output "$OUT/kestrel-dense.json"
+python -m evaluation.v3 --corpus kestrel --question-set v3 --retrievers dense bm25          --output "$OUT/kestrel-dense-bm25.json"
+python -m evaluation.v3 --corpus kestrel --question-set v3 --retrievers dense bm25 graph \
+  --graph-path concepts/kestrel_graph_v2/graph.json --output "$OUT/kestrel-dense-bm25-graph.json"
+python -m evaluation.v3 --corpus vellora --question-set v2 --retrievers dense               --output "$OUT/vellora-dense.json"
+python -m evaluation.v3 --corpus vellora --question-set v2 --retrievers dense bm25          --output "$OUT/vellora-dense-bm25.json"
+python evaluation/results/v3/graph_v2_final_2026-11-08/analyze.py "$OUT"
 ```
 
 Options: `--candidate-depth` (per retriever, default 20), `--rrf-k` (default 60), `--top-k` (default 5). Existing output files are never overwritten. `scripts/v3_seedfix_eval.sh` reproduces the final Kestrel runs.
@@ -228,11 +231,11 @@ This application has no authentication, multi-user isolation, background indexin
 See `REPORT.md` for decisions and observed failures, `reports/RAG_V2_IMPLEMENTATION_REPORT.md` for current delivery evidence and Git status, and the preserved V1 report for historical evidence.
 
 
-Kestrel's completed owner review is saved in `evaluation/results/kestrel-reviewed.json`: 6 correct, 3 partial, 1 wrong; all 10 no-context flags false. All 15 Vellora no-context responses are AI-assessed with explicit provenance; q09 and q10 supply the expected facts. No human Vellora review is claimed. See the latest review-status section in REPORT for release readiness.
+Kestrel's completed owner review is saved in `evaluation/results/kestrel-reviewed.json`: 6 correct, 3 partial, 1 wrong; all 10 no-context flags false. All 15 Vellora no-context judgments were initially AI-assisted, then personally verified and confirmed by **Feras M**. Human verification is complete and recorded in `evaluation/results/vellora-reviewed.json` and `evaluation/results/vellora-no-context.jsonl`: q09 and q10 are true; the other 13 are false. Original AI assessment provenance and the subsequent human-confirmation history are preserved. See the latest review-status section in REPORT for release readiness.
 
 
 ## Post-release Vellora human confirmation
 
-Feras M explicitly confirmed all 15 proposed no-context judgments in chat after reviewing the question/expected-answer/response summary table: **Yes for q09 and q10, No for the other 13**. The confirmation concerns the no-context flags, not a new Vellora RAG-answer grading experiment. `evaluation/results/vellora-reviewed.json` and `vellora-no-context.jsonl` now record the verifier, confirmation timestamp, rationale and review history. Original AI assessor metadata remains unchanged, including its historical `human_reviewed: false` value at the time of the AI-only assessment; the subsequent `human_verification` event records the later confirmation. `vellora-ai-assessed.json` remains byte-for-byte intact. All 10 Kestrel human reviews are unchanged. Earlier AI-only status descriptions in this report describe the original v2 release snapshot and are superseded by this confirmation.
+Feras M completed human verification and explicitly confirmed all 15 proposed no-context judgments in chat after reviewing the question/expected-answer/response summary table: **Yes for q09 and q10, No for the other 13**. The confirmation concerns the no-context flags, not a new Vellora RAG-answer grading experiment. `evaluation/results/vellora-reviewed.json` and `vellora-no-context.jsonl` now record the verifier, confirmation timestamp, rationale and review history. Original AI assessor metadata remains unchanged, including its historical `human_reviewed: false` value at the time of the AI-only assessment; the subsequent `human_verification` event records the later confirmation. `vellora-ai-assessed.json` remains byte-for-byte intact. All 10 Kestrel human reviews are unchanged. The original v2 release snapshot contains the initial AI-only assessments; the subsequent human confirmation is recorded in the follow-up artifacts. Final V2 documentation reflects completed human verification by Feras M.
 
 This is a follow-up on main, not a new release. The existing annotated v2 tag remains object `07ff1e7d3262b4fbbb589eb97921cfa1803d1d20`, pointing to release commit `2a223476c8df74ae6e0464fada5c277f39aaa984`. Main is expected to advance beyond that tag. No evaluation questions, model responses, retrieval metrics or application code changed.

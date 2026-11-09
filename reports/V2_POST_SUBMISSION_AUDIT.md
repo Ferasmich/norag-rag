@@ -1,5 +1,7 @@
 # RAG V2 post-submission audit
 
+> **Documentation follow-up — 9 November 2026:** V2 human verification was completed and recorded by **Feras M for all 15 Vellora no-context judgments**, after the initial AI-assisted assessments (true for q09/q10; false for the other 13). README, REPORT and the V2 implementation/submission reports now state both stages consistently. The superseded-review-wording warning below records the earlier audit finding and is resolved by this documentation correction. Original evaluation records, review history, provenance and results remain unchanged; the historical v2 tag is unchanged. Other findings below retain their original audit scope.
+
 Audit date: November 3, 2026 (Europe/Paris). Scope: read-only Git/GitHub, code, records and documentation inspection; automated checks; this local report only. The owner states the assignment submission email has already been sent. This audit did not independently access email or contact the professor.
 
 ## Verdict

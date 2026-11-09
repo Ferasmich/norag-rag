@@ -54,7 +54,7 @@ A schema-valid citation is an integrity check: the cited passage was retrieved. 
 
 ## V2 — C7 implementation and evaluation (review draft)
 
-Authoritative scope: C7, Session 3, Part III, “RAG Project - V2”, 14 pages. Deadline **November 3, 2026 at 11:59 a.m.**, superseding the C6 schedule. This section is an implementation-assistant draft based on actual code and measured runs; Feras must review, personalize the decision log and enter the required hand grades. It does not claim student-authored observations or decisions. C7 page 3 asks for a student-written report; AI assistance is disclosed rather than presented as that personal work.
+Authoritative scope: C7, Session 3, Part III, “RAG Project - V2”, 14 pages. Deadline **November 3, 2026 at 11:59 a.m.**, superseding the C6 schedule. This section is an implementation-assistant draft based on actual code and measured runs; Feras remains responsible for reviewing and personalizing the decision log. Required Kestrel hand grades and human verification of all 15 Vellora no-context judgments have been completed and recorded by Feras M. It does not claim student-authored observations or decisions. C7 page 3 asks for a student-written report; AI assistance is disclosed rather than presented as that personal work.
 
 ### Requirements and implementation evidence
 
@@ -63,13 +63,13 @@ Authoritative scope: C7, Session 3, Part III, “RAG Project - V2”, 14 pages. 
 | 2 | Deadline; repo submission and team details | Deadline corrected here and in README; sole developer recorded above. Submission email remains the owner’s responsibility. |
 | 3 | Preserve V1 web app, references, validation, management and settings | Core service unchanged; original 30 tests retained and pass in the expanded suite; `v1` unchanged. |
 | 4–5 | Two corpora, Kestrel starter 10 and own >=10 questions | Five Kestrel documents and starter JSONL copied unchanged; 15 fixed Vellora questions converted losslessly to JSONL. |
-| 6 | No-context tests for both sets; flag correct answers | Exact questions sent without evidence/expected answers; real responses/errors saved. Kestrel human flags verified; all 15 Vellora flags independently AI-assessed with explicit provenance. Retain flagged questions to preserve baseline comparability. |
+| 6 | No-context tests for both sets; flag correct answers | Exact questions sent without evidence/expected answers; real responses/errors saved. Kestrel human flags verified; all 15 Vellora judgments initially AI-assessed, then personally verified and confirmed by Feras M, with both stages recorded. Retain flagged questions to preserve baseline comparability. |
 | 7–8 | Verification distinct from evaluation; file output, CLI + frontend; k=1/3/5/10, per type; two configurations | Shared evaluator, real MiniLM/Chroma runs, structured saved evidence and API/frontend controls; tables below. Unanswerable excluded. |
 | 9 | Optional answer generation, grading rules before hand grades, best config on one set, diagnose failure stage | Kestrel 800/80 k=10 selected; actual responses saved with references and prior grading rubric. Manual grade/notes/reviewer controls and JSON export; all 10 Kestrel human reviews verified. |
 | 10–11 | Words tab, corpus and question modes; choices justified | Case-folded Unicode token counts, chunk frequency, word-to-chunk counts, typed/picked questions, absence detection; exact offsets and selection maintained. |
 | 12 | Diagnose two retrieval misses, one per corpus | Same Words analysis function as UI; actual counts and target chunks in `reports/words_diagnoses.json`, discussed below. |
 | 13 | Unlinked `/about` page with prescribed large text | Dedicated HTML route; HTTP content and absence of frontend link checked in tests. |
-| 14 | JSONL sets + no-context, results + grades, README/REPORT, v2 tag | Sets and real evaluation artifacts provided; Kestrel hand grades verified; Vellora no-context AI assessments complete. Git release status is recorded in the implementation report. |
+| 14 | JSONL sets + no-context, results + grades, README/REPORT, v2 tag | Sets and real evaluation artifacts provided; Kestrel hand grades verified; all 15 Vellora no-context judgments human-verified and confirmed by Feras M after the initial AI-assisted assessments. Git release status is recorded in the implementation report. |
 
 ### V2 decisions for owner review
 
@@ -180,7 +180,7 @@ Future versions may investigate lexical retrieval for exact codes and safer/ mea
 
 ### Hosted-run completion and owner review
 
-Paced Kestrel 800/80/k=10 completed with 10/10 validated generated responses and 10/10 no-context responses, no recorded hosted errors (`evaluation/results/kestrel-answers-no-context-paced.json`). Paced Vellora no-context completed 15/15, also without recorded hosted errors (`evaluation/results/vellora-no-context-paced.json`). Earlier incomplete attempts remain in their original result files. The two `*-no-context.jsonl` result sets include the original questions, expected evidence and actual no-context responses. Kestrel correctness flags reflect the verified owner review; Vellora flags now reflect separately saved AI assessments, not fabricated human reviews.
+Paced Kestrel 800/80/k=10 completed with 10/10 validated generated responses and 10/10 no-context responses, no recorded hosted errors (`evaluation/results/kestrel-answers-no-context-paced.json`). Paced Vellora no-context completed 15/15, also without recorded hosted errors (`evaluation/results/vellora-no-context-paced.json`). Earlier incomplete attempts remain in their original result files. The two `*-no-context.jsonl` result sets include the original questions, expected evidence and actual no-context responses. Kestrel correctness flags reflect the verified owner review; Vellora flags reflect the initial separately saved AI assessments followed by Feras M’s completed human verification and confirmation of all 15 judgments; both stages are recorded.
 
 The owner completed Kestrel grades. Reviewable local runs are `1b9aa8d25e274a92ba0079d58cae8ec9` (Kestrel, grade plus prior-knowledge flag) and `b9fecacce5e04d46a1b8388a942dd191` (Vellora, prior-knowledge flags). The verified Kestrel grade table appears below. Final commit/push/v2 tag status is recorded in the submission report.
 
@@ -204,23 +204,23 @@ The owner completed all 10 Kestrel reviews as **Feras M**. The downloaded `kestr
 
 Totals: **6 correct, 3 partial, 1 wrong, 0 unsupported** across 10 questions. Both unanswerable questions abstain correctly. These are the owner's judgments on this small fixed set, not agent-assigned grades or a general accuracy estimate. All 10 Kestrel no-context flags are false according to the owner. No questions are replaced. The full original notes remain in the reviewed JSON rather than being rewritten by the agent.
 
-Vellora no-context assessment is now complete with transparent AI provenance; see the final assessment section below. No human Vellora review is claimed.
+Vellora no-context human verification is complete: **Feras M personally verified and confirmed all 15 judgments** after the initial AI-assisted assessments. The reviewed JSON and no-context JSONL record this confirmation while preserving the original AI provenance; see the sections below.
 
 
 ## Final no-context assessment and comparison
 
-At the owner's explicit request, Codex independently assessed all 15 saved Vellora no-context responses against the expected answers and corpus evidence. These are **AI assessments, not human reviews**. They are saved separately in `evaluation/results/vellora-ai-assessed.json` with per-question reasoning, assessor, timestamp and `human_reviewed: false`; the original model responses and runtime review file are preserved. The submission-format `vellora-no-context.jsonl` includes the same transparent assessment provenance. No human reviewer identity was invented.
+At the owner's explicit request, Codex initially assessed all 15 saved Vellora no-context responses against the expected answers and corpus evidence. These initial judgments were **AI-assisted assessments** and are preserved separately in `evaluation/results/vellora-ai-assessed.json`, including their original reasoning, assessor, timestamp and historical `human_reviewed: false` status. **Feras M subsequently personally verified and confirmed all 15 judgments.** Completed human verification is recorded in `evaluation/results/vellora-reviewed.json` and `evaluation/results/vellora-no-context.jsonl`, with verifier, timestamp, rationale and review history. The initial AI assessment and later human confirmation remain distinct events; original responses, results and provenance are unchanged.
 
-Vellora flags: **q09 and q10 true; the other 13 false**. q09 supplies both removal for at least five seconds and machine-on conditions. q10 gives no dishwasher and explains loss of necessary lubricant. q04 offers a generic two-month interval for another filter but not the required 50-litre condition, so it is false. q13–q15 do not provide factual answers; abstentions never count as prior knowledge. All questions are retained, with these flags disclosed rather than silently replaced. Owner review of the AI judgments remains recommended, but C7 explicitly requires hand grading of generated RAG answers on one set; the existing Kestrel human review fulfills that requirement.
+Vellora flags: **q09 and q10 true; the other 13 false**. q09 supplies both removal for at least five seconds and machine-on conditions. q10 gives no dishwasher and explains loss of necessary lubricant. q04 offers a generic two-month interval for another filter but not the required 50-litre condition, so it is false. q13–q15 do not provide factual answers; abstentions never count as prior knowledge. All questions are retained, with these flags disclosed rather than silently replaced. Feras M completed human verification of all 15 no-context judgments. This is distinct from grading generated RAG answers: C7 requires hand grading on one set, fulfilled by the existing Kestrel human review.
 
-RAG versus no-context: on Kestrel, the owner rated 6/10 RAG answers correct, 3 partial and 1 wrong (0 unsupported), while none of the 10 no-context responses supplied the expected facts. The wrong q08 is primarily a retrieval failure: team/channel evidence is missing; q02/q04/q05 omit details despite available source information, indicating incomplete generation. The owner's acceptance of q06/q07 is preserved exactly, despite the previously noted version-selection caveat. Vellora has 2/15 no-context expected-fact matches according to AI assessment; it was evaluated for retrieval at all four k values, but no comprehensive Vellora RAG-answer quality percentage is claimed. Retrieval hits are not answer grades. The small question sets and mixed human/AI assessment provenance limit broader conclusions.
+RAG versus no-context: on Kestrel, the owner rated 6/10 RAG answers correct, 3 partial and 1 wrong (0 unsupported), while none of the 10 no-context responses supplied the expected facts. The wrong q08 is primarily a retrieval failure: team/channel evidence is missing; q02/q04/q05 omit details despite available source information, indicating incomplete generation. The owner's acceptance of q06/q07 is preserved exactly, despite the previously noted version-selection caveat. Vellora has 2/15 no-context expected-fact matches, initially AI-assessed and subsequently verified and confirmed by Feras M; it was evaluated for retrieval at all four k values, but no comprehensive Vellora RAG-answer quality percentage is claimed. Retrieval hits are not answer grades. The small question sets and initial AI-assisted assessment followed by human confirmation limit broader conclusions.
 
 Verification limitations: complete responsive/browser click-through remains unverified; browser smoke and HTTP workflows are recorded above. Student report personalization and the actual submission email remain owner responsibilities. No V3/V4 functionality was added.
 
 
 ## Post-release Vellora human confirmation
 
-Feras M explicitly confirmed all 15 proposed no-context judgments in chat after reviewing the question/expected-answer/response summary table: **Yes for q09 and q10, No for the other 13**. The confirmation concerns the no-context flags, not a new Vellora RAG-answer grading experiment. `evaluation/results/vellora-reviewed.json` and `vellora-no-context.jsonl` now record the verifier, confirmation timestamp, rationale and review history. Original AI assessor metadata remains unchanged, including its historical `human_reviewed: false` value at the time of the AI-only assessment; the subsequent `human_verification` event records the later confirmation. `vellora-ai-assessed.json` remains byte-for-byte intact. All 10 Kestrel human reviews are unchanged. Earlier AI-only status descriptions in this report describe the original v2 release snapshot and are superseded by this confirmation.
+Feras M completed human verification and explicitly confirmed all 15 proposed no-context judgments in chat after reviewing the question/expected-answer/response summary table: **Yes for q09 and q10, No for the other 13**. The confirmation concerns the no-context flags, not a new Vellora RAG-answer grading experiment. `evaluation/results/vellora-reviewed.json` and `vellora-no-context.jsonl` now record the verifier, confirmation timestamp, rationale and review history. Original AI assessor metadata remains unchanged, including its historical `human_reviewed: false` value at the time of the AI-only assessment; the subsequent `human_verification` event records the later confirmation. `vellora-ai-assessed.json` remains byte-for-byte intact. All 10 Kestrel human reviews are unchanged. The original v2 release snapshot contains the initial AI-only assessments; the subsequent human confirmation is recorded in the follow-up artifacts. Final V2 documentation reflects completed human verification by Feras M.
 
 This is a follow-up on main, not a new release. The existing annotated v2 tag remains object `07ff1e7d3262b4fbbb589eb97921cfa1803d1d20`, pointing to release commit `2a223476c8df74ae6e0464fada5c277f39aaa984`. Main is expected to advance beyond that tag. No evaluation questions, model responses, retrieval metrics or application code changed.
 
@@ -237,11 +237,11 @@ The approved Gemini extraction used exactly 43 attempts, with 29 strict-valid re
 
 Kestrel V3 (12 questions, 10 answerable): HitRate/Recall@5 is dense 90%/75%, BM25 80%/55.8%, dense+BM25 90%/74.2%, graph 20%/11.7%, all three 90%/70.8%. Vellora (original 15, 12 answerable): dense 58.3%/58.3%, BM25 and dense+BM25 91.7%/91.7%. Defaults are therefore dense for Kestrel and BM25 for Vellora. q01 improves with lexical fusion; q05 loses evidence; q12 loses its ledger support with the graph vote. Graph candidate top-5 survival rises from 12/18 at depth20 to 17/18 at depth40, while Recall@5 falls to 50.8%; depth20 is retained. No graph benefit or completeness is invented.
 
-Two append-only Kestrel multi-hop questions are supplied; original datasets/results remain unchanged. Final nine retrieval runs use zero LLM calls and report literal annotation recall rather than exhaustive relevance. All 144 tests passed in 11.96s, including four V2 dense baseline reproductions on both legacy/configured paths. Browser verification remains unavailable; no new hosted answer-quality grading was performed. [Final verification](reports/V3_FINAL_VERIFICATION.md) records the release checks. This supersedes earlier historical statements that no V3 functionality exists. Commit, v3 tag, push and actual submission remain pending owner approval.
+Two append-only Kestrel multi-hop questions are supplied; original datasets/results remain unchanged. Final nine retrieval runs use zero LLM calls and report literal annotation recall rather than exhaustive relevance. All 144 tests passed in 11.96s, including four V2 dense baseline reproductions on both legacy/configured paths. Browser verification remains unavailable; no new hosted answer-quality grading was performed. [Final verification](reports/V3_FINAL_VERIFICATION.md) records the release checks. This supersedes earlier historical statements that no V3 functionality exists. This was the historical pre-release status. The local and origin `v3` tag now identify commit `2664b6f2b80cef4c710f30ffb32a2ae7ebe2c857`; email submission has not been verified by this audit. See `reports/V3_SUBMISSION_AUDIT.md` for current checks.
 
 ## V3 final — rebuilt Concept Graph, hybrid retrieval and evaluation (8 November 2026)
 
-This section is the V3 submission report. It supersedes the V3 numbers above.
+This section is the V3 submission report. It supersedes the V3 numbers above. The final audit against the professor’s 12-page C8 PDF is in [V3_SUBMISSION_AUDIT.md](reports/V3_SUBMISSION_AUDIT.md). The `v3` tag already exists locally and on origin at `2664b6f2b80cef4c710f30ffb32a2ae7ebe2c857`; subsequent documentation corrections are prepared as a separate local follow-up commit and require a normal push to make them available on origin/main. The existing v3 tag remains unchanged.
 
 ### Results table (Recall@k / HitRate@k)
 
@@ -265,25 +265,35 @@ Retrieval-only evaluation, 800/80 chunks, final top-k 5, candidate depth 20 per 
 
 **Recall@5 by question type** (n = answerable questions of that type; not_in_corpus questions have no evidence and are excluded from Recall/Hit, as in V2)
 
-| Corpus | Retrievers | exact_identifier | split_answer | vocabulary | versions | two_hop |
-|---|---|---|---|---|---|---|
-| Kestrel (n) | | 2 | 2 | 1 | 2 | 3 |
-| Kestrel | dense | 0.50 | 1.00 | 1.00 | 1.00 | 0.50 |
-| Kestrel | BM25 | 0.25 | 0.62 | 0.00 | 1.00 | 0.61 |
-| Kestrel | dense + BM25 | 1.00 | 0.62 | 0.00 | 1.00 | 0.72 |
-| Kestrel | graph | 0.25 | 0.50 | 0.00 | 0.00 | 0.78 |
-| Kestrel | dense + graph | 0.25 | 1.00 | 1.00 | 1.00 | 0.89 |
-| Kestrel | dense + BM25 + graph | 1.00 | 0.62 | 0.00 | 1.00 | **0.89** |
-| Vellora (n) | | 4 | – | 4 | – | – |
-| Vellora | dense | 0.50 | – | 0.50 | – | – |
-| Vellora | BM25 | 1.00 | – | 1.00 | – | – |
-| Vellora | dense + BM25 | 1.00 | – | 1.00 | – | – |
+| Corpus | Retrievers | exact_identifier | split_answer | vocabulary | versions | two_hop | other |
+|---|---|---|---|---|---|---|---|
+| Kestrel (n) | | 2 | 2 | 1 | 2 | 3 | – |
+| Kestrel | dense | 0.50 | 1.00 | 1.00 | 1.00 | 0.50 | – |
+| Kestrel | BM25 | 0.25 | 0.62 | 0.00 | 1.00 | 0.61 | – |
+| Kestrel | dense + BM25 | 1.00 | 0.62 | 0.00 | 1.00 | 0.72 | – |
+| Kestrel | graph | 0.25 | 0.50 | 0.00 | 0.00 | 0.78 | – |
+| Kestrel | dense + graph | 0.25 | 1.00 | 1.00 | 1.00 | 0.89 | – |
+| Kestrel | dense + BM25 + graph | 1.00 | 0.62 | 0.00 | 1.00 | **0.89** | – |
+| Vellora (n) | | 4 | – | 4 | – | – | 4 |
+| Vellora | dense | 0.50 | – | 0.50 | – | – | 0.75 |
+| Vellora | BM25 | 1.00 | – | 1.00 | – | – | 0.75 |
+| Vellora | dense + BM25 | 1.00 | – | 1.00 | – | – | 0.75 |
 
-All k (1/3/5/10), HitRate and Recall per type are in each run folder's `tables.md`, `by_type.csv` and `per_question.csv`.
+All k (1/3/5/10), HitRate and Recall per type are in each run folder's `tables.md`, `by_type.csv` and `per_question.csv`, and the original run JSON. Vellora retains its four original `other` questions rather than silently relabeling them. Missing types and `not_in_corpus` retrieval metrics are N/A; unanswerable items have no gold evidence denominator.
+
+For a comparison on the unchanged original ten Kestrel V2 questions (8 answerable), the final saved runs give:
+
+| Retrievers | HitRate@5 | Recall@5 |
+|---|---:|---:|
+| dense | 0.875 | 0.8125 |
+| dense + BM25 | 0.875 | 0.71875 |
+| dense + BM25 + graph | 0.875 | 0.78125 |
+
+Thus the three-way default improves Recall@5 on the augmented 12-question V3 set, but does not improve overall Recall@5 on the original V2 slice. Dense is evaluated on the same added questions as every other configuration. These are recomputations from preserved per-question records, not new grades or edited results.
 
 ### Default configuration, and why
 
-- **Kestrel: dense + BM25 + graph, top-k 5, depth 20, RRF k 60.** It raises Recall@5 from 0.75 (V2 dense) to 0.79 and Recall@10 to 1.00. The gain is concentrated where it was designed to be: two_hop Recall@5 goes from 0.50 to 0.89, and exact identifiers from 0.50 to 1.00 (BM25). dense + graph has a higher overall Recall@5 (0.82) but drops exact_identifier to 0.25 (q02), which is the "E47" failure the course started from; with 10 answerable questions, that 0.03 difference is less than one question, so I chose the configuration without a hole on a whole question type. Cost per question: 0 LLM calls, 0 tokens, +4.8 ms median retrieval latency over dense. The graph costs one build (below).
+- **Kestrel: dense + BM25 + graph, top-k 5, depth 20, RRF k 60.** On the augmented V3 set, it raises Recall@5 from 0.75 (dense) to 0.79 and Recall@10 to 1.00. The gain is concentrated where it was designed to be: two_hop Recall@5 goes from 0.50 to 0.89, and exact identifiers from 0.50 to 1.00 (BM25). dense + graph has a higher overall Recall@5 (0.82) but drops exact_identifier to 0.25 (q02), which is the "E47" failure the course started from; with 10 answerable questions, that 0.03 difference is less than one question, so I chose the configuration without a hole on a whole question type. Cost per question: 0 LLM calls, 0 tokens, +4.8 ms median retrieval latency over dense. The graph costs one build (below).
 - **Trade-off:** Recall@1 (0.25 vs 0.36) and Recall@3 (0.49 vs 0.72) are worse than dense alone; fusion spreads the top ranks over three voters. With a top-k of 3 dense would win; at our top-k of 5 the hybrid wins.
 - **Vellora: BM25 alone.** Recall@5 0.92 vs 0.58 for dense; dense + BM25 ties at k = 5 but is worse at k = 1 and 3. No graph on Vellora (not required; the corpus is a single manual).
 - The UI selects these defaults when a corpus is loaded; every retriever can still be switched on/off in the UI and with `--retrievers` on the CLI.
@@ -301,7 +311,7 @@ Full detail: [Phase 1 BM25 report](reports/V3_PHASE1_BM25.md) and [bm25/README.m
 
 ### The Concept Graph
 
-**Build (recipe v2).** `python -m rag_app.graph build --recipe v2 --model gemini-3.6-flash --approve-external …` (full commands in README). Each of the 43 Kestrel chunks (800/80, identical to retrieval chunks) is sent once to Gemini through the OpenAI-compatible endpoint, with temperature 0 and JSON output. The chunk is sent together with its **Markdown heading path** (e.g. `## Connectors (KST-2xxx) > ### KST-2040 — Connection timed out`) and, inside tables, the table header row. The heading path is computed locally, without an LLM.
+**Build (recipe v2).** `python -m rag_app.graph build --recipe v2 --model gemini-3.6-flash --approve-external …` (full commands in README). All 43 Kestrel chunks (800/80, identical to retrieval chunks) have validated Gemini extractions through the OpenAI-compatible endpoint, with temperature 0 and JSON output. The final build reused 19 cached extractions and made 24 new calls; the earlier build also had four failed calls, so the full recipe-v2 history totals 47 attempts. The chunk is sent together with its **Markdown heading path** (e.g. `## Connectors (KST-2xxx) > ### KST-2040 — Connection timed out`) and, inside tables, the table header row. The heading path is computed locally, without an LLM.
 
 **Schema: fixed, not open.** 10 entity types (ErrorCode, Service, Team, Channel, Feature, Plan, Role, Policy, Rule, Value) and 10 relation types (RAISED_BY, OWNED_BY, CONTACT_CHANNEL, ESCALATE_TO, PROVIDES, AVAILABLE_ON, HAS_RULE, HAS_VALUE, REQUIRES, REPLACED_BY), each with allowed endpoint types and direction (`rag_app/graph_schema.py`). Why fixed: the questions are about support routing (error → service → team → channel) and plans; a fixed schema makes every edge checkable and traversal predictable. An open schema (GraphRAG/LightRAG style) finds more, but produces near-duplicate relation names ("is owned by", "belongs to", "managed by") that then need their own resolution step. The cost of the choice: facts outside the schema are lost — see "where it fails".
 
@@ -319,12 +329,12 @@ Full detail: [Phase 1 BM25 report](reports/V3_PHASE1_BM25.md) and [bm25/README.m
 **Build cost.** Model `gemini-3.6-flash` ($0.75 / $3.75 per million input/output tokens, checked 8 Nov 2026).
 - Final build: 24 calls, 45,766 input + 3,402 output tokens, $0.047, 406 s (paced 8 s between calls).
 - An earlier run of the same recipe stopped on the free-tier limit (5 requests/minute, ~20/day for this model): 23 calls (19 valid, 2 × HTTP 500, 2 × 429), 35,689 + 2,428 tokens, $0.036, 356 s; its 19 valid extractions were reused from the cache by the final build (`attempts_superseded_partial_build_5d6add.json`). Billing was then enabled on the key.
-- Total for the v2 graph: **47 LLM calls, 81,455 input + 5,830 output tokens (4 failed calls without usage), ≈ $0.083, ≈ 12.7 min**. The v1 graph had cost 43 calls / $0.020 with flash-lite. Query-time cost of graph retrieval: 0 LLM calls.
+- Total for the v2 graph: **47 LLM calls, 81,455 known input + 5,830 known output tokens, ≈ $0.083 known-usage estimate, ≈ 12.7 min**. Four failed calls have no token usage; exact total tokens and total billed cost are unavailable. The v1 graph had cost 43 calls / $0.020 with flash-lite. Query-time cost of graph retrieval: 0 LLM calls.
 
 **Graph retrieval.** Takes the question and returns ranked chunks like the other retrievers. (1) Seeds: entities whose name appears in the question (word boundaries; error codes take priority). A one-word capitalized name ("Team", "Business") must match with its case, so a common word does not seed a plan (fix described below). If nothing matches, a local lexical match over entity names and their evidence quotes (TF-IDF-like, no LLM). (2) Breadth-first traversal up to 3 edges from at most 3 seeds, both directions, at most 12 edges per node, 200 expansions. (3) Each path votes for the chunks of its edges' provenance and its end node, weighted by seed score / (1 + path length). Chunks are ranked by summed votes. The UI shows the matched entities, the edges followed (with conditions) and the source quotes.
 Other options I considered: community summaries (GraphRAG global search) — aimed at "summarize the corpus" questions, not routing; LightRAG-style keyword extraction of the question with an LLM — better seeds (would fix q12) but one LLM call per question; personalized PageRank from the seeds — smoother scores but harder to explain in the UI.
 
-**Extraction quality (manual).** 10 triples drawn with `random.Random(20261108).sample` from the 39 relations, graded by me against the full source chunk: **10 correct / 0 wrong / 0 unsupported**. File: `evaluation/graph_review/kestrel-v2-10-triples.json` (grades and reasons as I wrote them in `kestrel-v2-10-triples-ungraded-GRADES.csv`; the sample with full chunks is in the `.md`). Limits: 7 of the 10 are table rows or owner lines, which are the easy cases; 10/10 on a sample of 10 still leaves room for errors in the other 29 — and there is one (below).
+**Extraction quality (manual).** 10 triples drawn with `random.Random(20261108).sample` from the 39 relations, graded by me against the full source chunk: **10 correct / 0 wrong / 0 unsupported**. File: `evaluation/graph_review/kestrel-v2-10-triples.json` (grades and reasons as I wrote them in `kestrel-v2-10-triples-ungraded-GRADES.csv`; the sample with full chunks is in `kestrel-v2-10-triples-ungraded.md`). Limits: 7 of the 10 are table rows or owner lines, which are the easy cases; 10/10 on a sample of 10 still leaves room for errors in the other 29 — and there is one (below).
 *How else to evaluate a concept graph:* precision by sampling (done); recall by hand-listing the facts of a few chunks and checking how many are in the graph (the 26 empty chunks show recall is the weak side); entity-resolution precision/recall on name pairs; and the task metric — does the graph move two_hop Recall (it does).
 
 **One bad triple, and what it cost.** `KST-3012 → ESCALATE_TO → "Analytics Eng"`: the chunk ends at character 4400 in the middle of "Analytics Eng|ine". The model copied the truncated name, and my validator accepted it because the label is literally in the quote. It created a separate Team node with no channel, so a path from KST-3012 through it is a dead end (the correct edge to "Analytics Engine" also exists, from the overlapping next chunk). Measured cost on the question set: none, because no question asks about KST-3012; on a real support question about KST-3012 it adds a useless path. Fix: reject labels ending exactly at a chunk boundary inside a word (v1 had this filter in `graph_context.py`; I did not port it to v2).
@@ -337,14 +347,14 @@ Other options I considered: community summaries (GraphRAG global search) — aim
 
 ### What happened to the graph's chunks after fusion
 
-| Run | Graph chunks in the graph's own top 5 (sum over 12 questions) | …still in the fused top 5 | Kestrel R@5 |
-|---|---|---|---|
-| v1 graph, depth 20 | – | 12 | 0.71 |
-| v2 graph, depth 20, before seed fix | 41 | 25 | 0.76 |
-| v2 graph, depth 20, seed fix (default) | 42 | **31** | **0.79** |
-| v2 graph, depth 40, seed fix | 42 | 40 | 0.64 |
+| Run | Graph own top-5 candidates (sum over 12 questions) | Of those, surviving in fused top 5 | Any graph-origin candidates in fused top 5 | Kestrel R@5 |
+|---|---:|---:|---:|---:|
+| v1 graph, depth 20 | 18 | 12 | 12 | 0.71 |
+| v2 graph, depth 20, before seed fix | 41 | 23 | 25 | 0.76 |
+| v2 graph, depth 20, seed fix (default) | 42 | **28** | **31** | **0.79** |
+| v2 graph, depth 40, seed fix | 42 | 37 | 40 | 0.64 |
 
-With the v1 graph, few graph chunks reached the top 5 because the graph had almost nothing to say (10 relations). After the rebuild, about three quarters of them survive. What I changed, and measured: (1) the rebuild itself (12 → 25 surviving, R@5 0.71 → 0.76); (2) the seed fix (25 → 31, R@5 0.76 → 0.79, two_hop 0.78 → 0.89); (3) more candidates, depth 20 → 40: graph survival goes up (31 → 40) but R@5 falls to 0.64, because dense and BM25 also contribute their ranks 21–40 and RRF then rewards chunks that are mediocre in all lists. I kept depth 20 and plain (equal-weight) RRF.
+With the v1 graph, few graph chunks reached the top 5 because the graph had almost nothing to say (10 relations). The saved `found_in_fused_at_k` field counts any graph-origin candidate, including graph ranks below 5; it is not restricted to the graph’s own top 5. The strict survival column above additionally requires graph origin rank ≤5. What I changed, and measured: (1) the rebuild increases any-graph presence from 12 to 25 (strict survivors 12 → 23, R@5 0.71 → 0.76); (2) the seed fix increases presence 25 → 31 (strict survivors 23 → 28, R@5 0.76 → 0.79, two_hop 0.78 → 0.89); (3) depth 20 → 40 increases presence 31 → 40 (strict survivors 28 → 37) but R@5 falls to 0.64, because dense and BM25 also contribute their ranks 21–40 and RRF then rewards chunks that are mediocre in all lists. I kept depth 20 and plain (equal-weight) RRF. Historical evaluator fields and result files are unchanged.
 
 Clearest success: **q08** (KST-5031, which team and where?). The catalog chunk with `#oncall-messaging` is rank 16 in BM25 and rank 20 in dense; the graph follows KST-5031 → RAISED_BY → postroom → OWNED_BY → Messaging → CONTACT_CHANNEL → #oncall-messaging and ranks it 2; after fusion it is rank 2. q08 Recall@5: 0.5 → 1.0. q11 also goes 0.67 → 1.0.
 

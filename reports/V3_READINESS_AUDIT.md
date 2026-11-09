@@ -1,5 +1,7 @@
 # RAG V3 readiness audit
 
+> **Historical scope:** this document records an earlier V3 phase or the first graph. For the current recipe-v2 graph, completed 10-of-39 review, final metrics, existing release tag and latest checks, use [V3_SUBMISSION_AUDIT.md](V3_SUBMISSION_AUDIT.md) and the “V3 final” section of [REPORT.md](../REPORT.md). Earlier pending or incomplete statements below are historical, not the current submission status.
+
 Audit date: 7 November 2026 (Europe/Paris). Repository: `norag-rag`, HEAD `8e86a027eb45d528eba5a153fe9804015fda8fa8`.
 
 ## Verdict and scope

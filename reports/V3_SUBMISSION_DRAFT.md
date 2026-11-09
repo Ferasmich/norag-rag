@@ -1,9 +1,8 @@
-# Local submission draft — do not send yet
+# Current V3 submission email draft — unsent
 
-> **Superseded (8 Nov 2026, afternoon).** This file describes the first, partial v1 graph (gemini-3.5-flash-lite, 10 relations). The submitted V3 results, rebuilt graph (`concepts/kestrel_graph_v2/`) and the extraction-quality review (`evaluation/graph_review/kestrel-v2-10-triples.json`) are in REPORT.md, section "V3 final". The v1 grades below were AI-drafted reasons confirmed in chat, not an independent review.
+Updated 9 November 2026 from the rebuilt graph and current audit. This replaces an obsolete email draft that pointed to the first graph; the first graph, evaluations and review artifacts remain preserved unchanged.
 
-
-To: [professor's submission address]
+To: [professor’s submission address]
 
 Subject: EPITA AI Systems Integration & Operations — C8 RAG V3 — Feras M
 
@@ -12,18 +11,21 @@ Hello,
 Please find my RAG V3 work for the C8 assignment:
 
 - Repository: https://github.com/Ferasmich/norag-rag
-- Release tag: `v3` [pending owner-approved commit, tag and publication]
-- Main report: `REPORT.md`; detailed V3 implementation and evaluation: `reports/V3_FINAL_INTEGRATION.md`.
-- Graph and extraction audit: `concepts/kestrel_graph/`.
-- Ten manually graded triples: `evaluation/graph_review/kestrel-10-triples.md` (Feras M: 10 correct, 0 wrong, 0 unsupported).
-- Final retrieval runs: `evaluation/results/v3/submission_2026-11-08/`.
-- Augmented Kestrel questions: `evaluation/kestrel-v3.jsonl`; original questions are preserved and q11/q12 appended.
+- Release tag: `v3`, commit `2664b6f2b80cef4c710f30ffb32a2ae7ebe2c857` (verified locally and on origin).
+- Main technical report: `REPORT.md`, section “V3 final”; final requirement audit: `reports/V3_SUBMISSION_AUDIT.md`.
+- Current graph: `concepts/kestrel_graph_v2/` (42 entities, 39 relations; 43 validated chunk extractions, including 26 empty extractions).
+- Current extraction-quality review: `evaluation/graph_review/kestrel-v2-10-triples.json`, ten randomly sampled relations out of 39, graded by Feras M: 10 correct / 0 wrong / 0 unsupported. The original ungraded JSON, full-source Markdown and filled grading CSV are preserved alongside it.
+- Final Kestrel retrieval results: `evaluation/results/v3/graph_v2_seedfix_2026-11-08/`.
+- Vellora results and before-fix/BM25 comparisons: `evaluation/results/v3/graph_v2_final_2026-11-08/`.
+- Updated Kestrel questions: `evaluation/kestrel-v3.jsonl`; the original ten questions are unchanged, with q11/q12 appended.
 
-The implementation includes persistent BM25 for both corpora, independent dense/BM25/graph retrievers, configurable RRF, and citation/path provenance. The graph is partial after the approved 43-request extraction cap; the report distinguishes original model output from nine offline context-expanded relations and documents failures and incomplete usage. The measured defaults remain dense for Kestrel and BM25 for Vellora. All 144 regression tests pass, including the four V2 dense baseline comparisons.
+The implementation includes persistent BM25 on both corpora, independently selectable dense/BM25/graph retrieval, plain RRF, reference origins/ranks and graph-path evidence. Defaults are dense+BM25+graph for Kestrel and BM25 for Vellora. The report presents measured gains and regressions, incomplete factual graph coverage, extraction cost and unknown failed-call usage. It distinguishes the current ten-of-39 manual review from the superseded first graph review.
+
+The final audit passed all 150 tests and freshly reproduced all five mandatory configuration/corpus combinations without altering saved evaluation records. Full interactive/responsive browser verification is not claimed.
 
 Best regards,
 Feras M
 
 ---
 
-This is an unsent local draft for a sole-developer submission. Confirm the recipient, final author identity and final repository/tag links before sending. The remote repository does not yet contain these uncommitted V3 changes. No commit, push, tag or email send has been authorized by approval of the extraction alone. The owner requested final-verification approval first.
+Unsent draft for the recorded sole-developer submission; confirm the recipient and any applicable course/team instructions before sending. The existing v3 tag is published and remains unchanged. The audit’s documentation corrections and earlier V2 documentation corrections are prepared in a separate local documentation-only follow-up commit, pending a normal push to origin/main with owner approval. After that push, submit https://github.com/Ferasmich/norag-rag/tree/main for the implementation plus corrected documentation; https://github.com/Ferasmich/norag-rag/tree/v3 remains the original implementation snapshot. The separate one-line UI status-text correction in rag_app/static/app.js is excluded from the documentation-only commit and remains uncommitted. No push, tag movement or email send is authorized by this preparation.

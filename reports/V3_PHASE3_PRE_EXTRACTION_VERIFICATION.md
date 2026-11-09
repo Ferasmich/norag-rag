@@ -1,5 +1,7 @@
 # Phase 3 pre-extraction verification
 
+> **Historical scope:** this document records an earlier V3 phase or the first graph. For the current recipe-v2 graph, completed 10-of-39 review, final metrics, existing release tag and latest checks, use [V3_SUBMISSION_AUDIT.md](V3_SUBMISSION_AUDIT.md) and the “V3 final” section of [REPORT.md](../REPORT.md). Earlier pending or incomplete statements below are historical, not the current submission status.
+
 Verification date: 8 November 2026 (Europe/Paris). Extraction has **not** started.
 
 - **Model/key verification:** authenticated GET requests to Google's native model endpoint and the OpenAI-compatible model endpoint both returned HTTP 200. They identify `gemini-3.5-flash-lite`, version `3.5-flash-lite-07-2026`, and advertise `generateContent` support. The model is valid and discoverable with the configured key. Actual generation quota, billing readiness and a successful generation response remain untested; no generation probe was made. Safe metadata results are in `V3_PHASE3_MODEL_VERIFICATION.json`; no key value or authorization header is saved there.
