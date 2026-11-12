@@ -2,7 +2,13 @@
 
 ## Team details
 
-Feras (GitHub: Ferasmich) is the sole developer and project owner. Implementation assistance was provided by Codex. No teammates are invented. The course presentation specifies teams of two or three; individual participation still requires confirmation with the professor. The student should review and personalize these decisions and be ready to explain the entire implementation.
+**Updated for the final release (12 November 2026).** Team: **Feras Michael** (GitHub: Ferasmich) and **Makuochukwu Okoene**. A possible third member was not confirmed when this report was written, so the project follows the handout's requirements for a team of two (Part A, one Part B feature, one Part C feature).
+
+Contribution record, kept factual: every commit in this repository was made by Feras Michael. The repository was developed separately, with the intention of consolidating the team's work into it; it contains no code committed by another team member, and this report does not attribute any part of the implementation to anyone else.
+
+AI assistance: the implementation was written with AI coding assistants (Codex for V1–V3, Claude Code for V4), directed and reviewed by Feras. Measurements come from the saved result files named in each section. Human grades are recorded only where a named person entered them; unreviewed results are labelled as such.
+
+*V1 note, kept for history:* Feras was the sole developer at V1, with implementation assistance from Codex.
 
 ## Decision log
 
@@ -392,3 +398,209 @@ Other regression: **q05** (vocabulary) loses its evidence when BM25 joins dense 
 - Graph recall (26 empty chunks, missing policy rules, 6/14 error codes) and the chunk-boundary truncation described above.
 - Generation quality with the new retrievers was not re-graded; V3 measures retrieval only (as requested).
 - The v1 graph and its review are kept for comparison (`concepts/kestrel_graph/`, `evaluation/graph_review/kestrel-10-triples*`); the v1 grades were AI-drafted and chat-confirmed over the whole 10-relation graph, so they are not used as the V3 extraction-quality result.
+
+
+## V4 — final release: traces, concept map explorer, personal data redaction (12 November 2026)
+
+Scope: the C9–C10 handout "RAG Project – V4 – The final release" (23 pages). For a team of two it asks for a clean-up, Part A (traces), one Part B feature and one Part C feature. The requirement-by-requirement check is in [reports/V4_FINAL_VERIFICATION.md](reports/V4_FINAL_VERIFICATION.md). All numbers below come from `evaluation/results/v4/` (index in its README).
+
+### What changed in the architecture
+
+The V3 pipeline is unchanged: upload → chunk → dense / BM25 / graph retrieval → RRF fusion → Gemini → citation validation. V4 adds three small modules around it and changes no retrieval logic.
+
+```
+question ──► dense ─┐
+             BM25  ─┼─► RRF fusion ─► redact ─► Gemini ─► validate ─► restore ─► answer + trace id
+             graph ─┘                 (C)                  (C guard)   (C)
+   every step is a span of one trace (A) ─► data/traces/traces.jsonl ─► "Details" in the page
+concept map tab (B) ─► reads concepts/kestrel_graph_v2/graph.json ─► links, quotes, chunks (+ a trace)
+```
+
+| File | Lines | Role |
+|---|---|---|
+| `rag_app/tracing.py` | ~100 | `Trace` (spans with a context manager), `TraceStore` (JSON lines, 30-day pruning), `llm_cost` |
+| `rag_app/redaction.py` | ~65 | `Redactor`: replace, restore, detect invented contact details |
+| `rag_app/concept_map.py` | ~50 | list of concepts, neighbourhood of one concept with its evidence |
+| `rag_app/service.py` | changed | spans around existing steps; `index_run`, `concept`, `_traced_question` |
+| `rag_app/api.py` | changed | `/api/traces`, `/api/traces/{id}`, `/api/concepts`, `/api/concepts/{id}`; errors carry a `trace_id` |
+| `rag_app/static/*` | changed | Details dialog, Recent activity, Concept map tab, clean-up |
+
+No new dependency.
+
+### Clean-up
+
+Looking at the V3 page as a first-time user, the problems were: six search parameters visible before the first question, a raw JSON block under every answer, the demo corpus hidden in the Evaluation tab, and a page that kept saying "preparing an answer…" after a failure. Changes: a **Load the Kestrel demo documents** button that also fills in a sample question; search parameters folded under *Advanced search settings* with plain names ("Meaning", "Exact words"); the JSON block replaced by the **Details** view; a clear "no answer this time" message with the reason and a Details button; the V1 baseline panel moved into the Evaluation tab. The README now starts with installation and a four-step first run. The Evaluation and Words tabs are unchanged.
+
+### Part A — traces
+
+**What is traced.** One trace per question, per indexing run and per concept lookup. Each trace has an id, a kind, a start time, a duration, an outcome and a list of spans.
+
+| Trace | Spans | Outcomes |
+|---|---|---|
+| question | one per enabled retriever (`dense`, `bm25`, `graph`), `fusion`, `redact`, `generate`, `validate` | answered, abstained, invalid (LLM output rejected), error |
+| indexing | `embed_document` per newly embedded document, `bm25_index` | indexed, error |
+| concept | `load_graph`, `neighborhood` | found, error |
+
+A retriever span records the number of candidates and the ids of its top chunks; `fusion` records the final ranking with the rank each retriever gave; `redact` records how many e-mails and phones were replaced; `generate` records the model, input and output tokens and the cost; `validate` records whether the answer was answerable, the cited chunk ids and how many invented contact details were removed.
+
+**When an indexing run is traced.** Always when the user clicks *Prepare documents now*; and automatically when a question has to embed a document that was not indexed yet. A question that finds everything already indexed does not create an indexing trace (tested: two questions on a new document produce exactly one).
+
+**What is never in a trace.** API keys, document or chunk text (ids only), answers. Exceptions are stored by type name only, because a library error message could quote document text. Personal data: the question is stored after redaction (Part C), so an e-mail address or phone number typed in a question is not written to disk. Names are not removed; this is the main gap and the reason traces stay local and expire.
+
+**From the answer to its trace.** Every answer has a **Details** button; so does a failed question (the error response carries the trace id), the status line after an indexing run, and every concept. *Recent activity* lists the last 30 traces.
+
+**Decision log questions (handout page 9).**
+
+- *What do you trace, where, for how long?* The items above, appended to `data/traces/traces.jsonl` (git-ignored), pruned at start-up when older than 30 days.
+- *Who can read them? Do they leave the machine?* Anyone with access to this user account on the laptop; the API listens on 127.0.0.1 only. They are never sent anywhere. The LLM provider receives the redacted question and passages, not the trace.
+- *Metrics page.* Not built (optional). The per-request totals shown in Details are sums over the spans of that trace; the cost is `input_tokens × $0.30/M + output_tokens × $2.50/M` for `gemini-3.5-flash-lite` (price table from the V3 graph build, checked 8 November 2026). An unknown model gives "cost unknown", not zero.
+- *Other options considered.* SQLite table: better for queries, but there is nothing to query without a metrics page, and JSON lines can be opened in any editor. Langfuse or Phoenix self-hosted: real trace views, but a second service to install, which works against "easy to install and run". A hosted tool: traces would leave the machine. Python `logging`: no structure per request.
+
+**Trade-offs.** Reading a trace scans the whole file (fine for hundreds of traces, not for millions). Only the model and tokens of the last LLM call are kept on the service object, which is correct for a single-user app with one request at a time and would not be for concurrent users.
+
+### Part B — concept map explorer
+
+**Why this feature.** The menu offered study artifacts, concept map explorer, conversation mode, answer style controls, iterative retrieval, reranking and query routing. The concept map explorer was chosen because the V3 graph already stores, for every link, the quote and chunk it came from, so the feature could be checked completely and automatically; it needs no LLM call (no cost, no invalid output to handle); and it gives the user something they did not have: a way to see what is in the corpus before asking.
+
+| Alternative | Why not |
+|---|---|
+| Reranking | needs a second model (a new download or more LLM calls); the gain on 22 answerable questions would be within noise |
+| Iterative retrieval, conversation mode | one or more extra LLM calls per question, and no objective check of "a good reformulation" with our small question sets |
+| Query routing | per-corpus defaults already exist (V3); a per-question router tuned on 22 questions would be overfitted |
+| Study artifacts, answer style controls | quality of generated quizzes or tone can only be judged by hand |
+
+**How it works.** `GET /api/concepts` lists the 42 concepts with their number of links. `GET /api/concepts/{id}` loads the saved graph (the loader re-validates checksums and that every quote matches its chunk), then returns the concept, its links (relation, direction, the other concept, the condition if any) and its mentions; each link and mention carries the quote, its character offsets, the document name and the full chunk text. The page draws the concept in the centre with one neighbour per link and lists the links below with their sources. Clicking a neighbour moves to it. *Ask a question about this concept* selects the Kestrel documents, writes "What do the documents say about X?" in the Ask tab and lets the user edit it.
+
+**Traced like the rest.** Each lookup is a trace with two spans and the ids of the chunks shown. A question asked from a concept is an ordinary question trace.
+
+**Cost and latency (measured).** Browsing: 0 LLM calls, 0 tokens, median lookup 1.0 ms, maximum 1.3 ms over the 42 concepts. A question asked from a concept costs one LLM call: $0.0015 for "ledger" and "#oncall-payments", $0.0036 for "Enterprise" (see the token finding below).
+
+**Failures.** Unknown concept id: 404 "Concept not found in the graph", with a trace. Graph file missing or corrupted: 503 "Concept map unavailable: …" shown in the tab. A concept without links would show "No link was extracted"; the current graph has none.
+
+**Checked (`offline_2026-11-12.json`, tests in `tests/test_v4.py`).**
+
+- All 42 concepts were opened. 156 quotes (mentions and link evidence) were compared with the unchanged course documents at the recorded offsets: 156 correct, 0 wrong.
+- Each of the 39 relations is visible from both of its ends (78 link views), with opposite directions.
+- Difficult cases looked at: the hub *Enterprise* (6 links, the most), *#oncall-analytics* (1 link, the fewest), the 5 links that carry a condition, and a concept name starting with `#`.
+- In the browser: selecting *Payments Core* shows 4 neighbours; clicking *#oncall-payments* moves to it; *Public share links → Business* shows the table row `| Public share links | — | Yes | Yes | Yes | Yes |` as its source and the full 800-character chunk.
+
+**What we found.** The explorer shows the graph exactly as it is, including its weaknesses from V3: 26 of 43 chunks produced no triple, so many things in the documents (refund rules, most error codes) are simply not on the map; the table-row quote above is correct but hard to read; a mention can appear twice when the same sentence lies in the overlap of two chunks (Payments Core lists 5 mentions for 3 distinct sentences). Generated questions of the form "What do the documents say about X?" are broad: for the hub *Enterprise* the answer is a list of features rather than an explanation.
+
+**Limits.** Kestrel only (the graph was built for these five documents with 800/80 chunks). Read-only: the graph does not update when documents change. The drawing places neighbours on an ellipse and would overlap beyond about 12 neighbours (maximum today: 6).
+
+### Part C — personal data redaction
+
+**Risk addressed.** The application runs on a laptop, but two things leave the process: the question and the retrieved passages go to the LLM provider, and the trace keeps a copy of the question on disk. If a user types "my e-mail is …" or a document contains a phone number, that data would be sent to Google and stored in the trace file.
+
+**Why this feature and not the injection scanner.** One feature is required for a team of two. Redaction is a pure function applied at two points and can be tested by capturing exactly what is sent. The injection scanner needs a quarantine state and a review screen. Injection is only mitigated as before (system prompt: documents are untrusted data; citations must be retrieved ids).
+
+**How it works.** `Redactor.redact` replaces e-mail addresses and phone numbers by numbered placeholders (`[EMAIL_1]`, `[PHONE_1]`); the same value always gets the same placeholder within a request. It is applied to the question and to the text of every retrieved passage just before the LLM call, and to the question before it is written in the trace. Retrieval itself uses the original question, because embeddings, BM25 and the graph run locally. After validation, `restore` puts the real values back in the answer, in memory, so the user reads a normal answer; references always show the original local text.
+
+**How detection is done.** Patterns (regular expressions), not an LLM (that would send the data out in order to detect it) and not an NER library (a new dependency and model). E-mail: a standard address pattern. Phone: a run of digits with the usual separators that contains 9 to 15 digits and is not an IP address, an ISO date or a decimal number.
+
+**Checked.**
+
+| Check | Result | Source |
+|---|---|---|
+| 11 detection cases (addresses, French/US/international numbers, IP, dates, prices, error codes) | 11 behave as expected, including 3 expected misses | `offline_2026-11-12.json` |
+| False positives on the two course corpora | 0 phone matches; 2 role addresses found (`billing@`, `privacy@kestrel.example`) | same |
+| Captured LLM payload with personal data in question and document | none of the three values present; placeholders present | `tests/test_v4.py` |
+| Trace file after 8 live questions, and after 3 runs of the hard case | no e-mail or phone found | `live_final_…`, `redaction_two_placeholders_…` |
+| Same refund question with and without personal data in front | both answered; same content (30-day rule in 2025, 60-day rule in 2026) | `live_final_2026-11-12.json` |
+
+**Three problems found by testing, and what was done.**
+
+1. *A phone number at the end of a sentence kept its last two digits* ("+33 6 12 34 56 78." became "[PHONE_1] 78."). The pattern refused a number followed by a full stop, to protect decimals. Fixed in the pattern; regression test added.
+2. *The model replaced the placeholder with an invented address.* For "How do I request a refund, and where do I send the request?", the first live run answered with `support@kestrel.example`, which is not in the corpus. A/B test, two runs each: with redaction the answer contained `refunds@kestrel.analytics` and `refunds@kestrel.example`; without redaction it contained the correct `billing@kestrel.example` both times (`redaction_ab_2026-11-12.json`). So redaction itself caused a wrong answer. Fix, part 1: one sentence in the system prompt saying that placeholders must be copied exactly. After it, 4 of 4 runs were correct (`redaction_after_fix_…`).
+3. *With two placeholders the model wrote the real address without having seen it.* When the question also contained an e-mail, the model answered `billing@kestrel.example` literally, although the payload contained only `[EMAIL_2]` (checked: the string is absent from the payload). It guessed from the context. A first guard that rejected any address in the raw answer therefore rejected a correct answer 3 times out of 3. Fix, part 2 (final): an address or number written by the model is kept if it equals a value that was hidden for this request, and replaced by "[contact removed: not found in your documents]" otherwise; the count is recorded in the trace. Final code: 3 of 3 correct on this case, 8 of 8 live questions with 0 removals.
+
+**Limits.**
+
+- Names are not detected. Example from the saved run: the answer about `#oncall-payments` contains "led by Jonas Berg" in two of the three saved runs; that name is in a retrieved passage and was sent to the provider with it. Postal addresses, account numbers and obfuscated forms ("sam (at) example (dot) org", a number written in words) are not detected either.
+- A role address such as `billing@kestrel.example` is treated like a personal one. This costs nothing to the user because it is restored, but it is the cause of problem 2.
+- Not covered: file names, the V3 graph extraction (run once, on the course documents, with its own approval flag) and the V2 "no-context" evaluation call, which sends fixed course questions.
+- Placeholders are an instruction the model can ignore. The guard removes invented values but cannot tell whether the rest of the sentence is right.
+
+### Measured results
+
+**Retrieval regression (no LLM).** The V3 evaluation was re-run on the final code for 7 configurations and compared with the committed V3 runs: 81 of 81 questions have an identical ranked list of chunk ids, and all metrics are equal (`retrieval_regression_2026-11-12/comparison.json`).
+
+| Corpus | Retrievers | Recall@5 V3 | Recall@5 V4 | Hit@5 V3 | Hit@5 V4 | Median V3 → V4 |
+|---|---|---|---|---|---|---|
+| Kestrel | dense | 0.75 | 0.75 | 0.90 | 0.90 | 12.8 → 14.1 ms |
+| Kestrel | dense + BM25 | 0.74 | 0.74 | 0.90 | 0.90 | 15.2 → 16.8 ms |
+| Kestrel | graph | 0.38 | 0.38 | 0.50 | 0.50 | 2.2 → 2.5 ms |
+| Kestrel | dense + BM25 + graph (default) | 0.79 | 0.79 | 0.90 | 0.90 | 17.6 → 19.0 ms |
+| Vellora | dense | 0.58 | 0.58 | 0.58 | 0.58 | 10.8 → 11.3 ms |
+| Vellora | BM25 (default) | 0.92 | 0.92 | 0.92 | 0.92 | 2.2 → 2.5 ms |
+| Vellora | dense + BM25 | 0.92 | 0.92 | 0.92 | 0.92 | 12.9 → 14.6 ms |
+
+The V4 medians are 0.3 to 1.7 ms higher. The runs were made on different days on the same laptop, so this is an upper bound for the cost of recording spans, not a precise measure.
+
+**Eight live questions (`live_final_2026-11-12.json`).** Kestrel, default retrievers, top-k 5, `gemini-3.5-flash-lite`, one LLM call each.
+
+| Case | Outcome | Time | Tokens in / out | Cost |
+|---|---|---|---|---|
+| two-hop (KST-5031) | answered | 1.85 s | 3407 / 289 | $0.00174 |
+| answer needs a hidden corpus address | answered, correct address restored | 0.92 s | 3449 / 136 | $0.00137 |
+| refund after 45 days | answered | 2.01 s | 3441 / 330 | $0.00186 |
+| same, with name, e-mail and phone in front | answered; 2 e-mails and 1 phone replaced | 1.43 s | 3464 / 275 | $0.00173 |
+| not in corpus (iPhone app) | abstained | 0.81 s | 3205 / 32 | $0.00104 |
+| from concept *ledger* | answered | 1.24 s | 2981 / 224 | $0.00145 |
+| from concept *Enterprise* (hub) | answered | 1.73 s | 8055 / 478 | $0.00361 |
+| from concept *#oncall-payments* | answered | 0.91 s | 3459 / 198 | $0.00153 |
+
+Totals: 8 calls, 31,461 input and 1,962 output tokens, $0.0143 (about $0.0018 per question). Median time 1.33 s, of which 1.31 s is the LLM call and 25 ms the three searches and the fusion. Indexing the five documents (43 chunks): 6.1 s, almost all of it loading the embedding model, 0 LLM calls.
+
+"Answered" is the outcome recorded by the pipeline (valid JSON, citations among the retrieved chunks). It is not a judgment of correctness.
+
+**Human review of the eight answers.** Feras M graded the eight answers of this run on 12 November 2026, with the V2 grading rules (correct / partial / wrong / unsupported). The grades and notes are recorded verbatim in `evaluation/results/v4/live_final_2026-11-12-REVIEW.csv` (and `.md`); the answers and result file were not changed.
+
+| # | Case | Grade | Reviewer's note |
+|---|---|---|---|
+| 1 | two-hop (KST-5031) | partial | Missing after-hours escalation to Platform. |
+| 2 | answer needs a hidden corpus address | correct | Both request methods are supported. |
+| 3 | refund after 45 days | correct | Correct 2025 and 2026 policy comparison. |
+| 4 | same, with personal data in front | correct | Correct refund rule; email and phone were redacted. |
+| 5 | not in corpus | correct | Correctly says the documents do not provide the answer. |
+| 6 | from concept *ledger* | correct | Service functions and owner match. |
+| 7 | from concept *Enterprise* | correct | Plan features match the source passages. |
+| 8 | from concept *#oncall-payments* | correct | Correct Payments Core channel and rotation. |
+
+Result: **7 correct, 1 partial, 0 wrong, 0 unsupported**. The partial answer is the two-hop question: the team and channel are given but one part of the expected answer (the after-hours escalation to Platform) is missing. Eight questions graded by one reviewer on a single run is a small sample; answers vary between runs (across the three saved runs, the KST-5031 answer states the `#oncall-messaging` channel in only two), and only this run was graded.
+
+**A cost finding made with the traces.** The *Enterprise* question used 8,055 input tokens against about 3,400 for the others. Cause: the evidence sent to the model is the retrieved rows as they are, including, for chunks found by the graph, the list of graph path ids (each one a 69-character hash). A hub concept seeds many paths: 84 path ids for *Enterprise* against 5 for *ledger*; the evidence JSON is 12,714 characters, of which only 4,827 are id, document name and text. Effect: about 4,650 extra input tokens, +$0.0014, so 2.4 times the usual cost of a question, and identifiers that are of no use to the model. Sending only `id`, `name` and `text` would remove it. It was not changed for the final release: it alters the prompt that the saved V2/V3/V4 answers were produced with, and it is a cost issue, not a wrong result.
+
+**API cost of V4 development and checks.** About 44 calls to `gemini-3.5-flash-lite` in total (browser checks, A/B tests, three runs of the 8 questions), about $0.07 according to the traces.
+
+### Decision log (V4)
+
+| Decision | Options | Choice and reason | Evidence / trade-off |
+|---|---|---|---|
+| Trace storage | JSON lines; SQLite; Langfuse/Phoenix; hosted | JSON lines in `data/traces/`: nothing to install, readable in an editor, stays local | linear scan on read |
+| Retention | forever; N traces; N days | 30 days, pruned at start-up | a test checks pruning |
+| Trace content | full prompts and answers; ids and counts | chunk ids, counts, timings, tokens, cost, redacted question | handout: no keys, no whole documents; cannot replay an answer from its trace |
+| Personal data in traces | store as typed; drop the question; redact | redacted question | names remain, hence local + 30 days |
+| Indexing trace | every index check; only real work | button click always, automatic indexing only when something is embedded | 1 trace for 2 questions on a new document |
+| Failed requests | no trace; trace without link | trace saved, id returned with the error, Details button on the message | browser check with a wrong chunk size and without API key |
+| Outcomes | ok/error; four values | answered, abstained, invalid, error (the categories of the optional metrics page) | – |
+| Cost | not shown; computed | tokens from the provider's `usage` × price table | unknown model → "unknown" |
+| Metrics page | build; skip | skipped (optional) | – |
+| Part B feature | 7 menu options | concept map explorer: fully checkable, no LLM call, reuses V3 | Kestrel only |
+| Graph display | graph library; own SVG; list only | own SVG (about 30 lines) + list of links with sources | overlaps beyond ~12 neighbours |
+| Part C feature | injection scanner; redaction | redaction | injection only mitigated by the prompt |
+| Detection | patterns; NER library; LLM | patterns for e-mail and phone | names missed; 0 false positives on the corpora |
+| Replacement | delete; fixed mask; numbered placeholders restored locally | numbered placeholders, restored in the answer | model may not copy them (problems 2 and 3) |
+| Invented contact details | ignore; reject the answer; remove the value | remove when not among the hidden values, keep when equal to one | rejecting failed 3/3 on a correct answer |
+| Where retrieval sees the question | redacted; original | original (retrieval is local) | – |
+| Evidence sent to the LLM | trim to id/name/text; leave | left as in V3 | +4,650 tokens on hub questions, documented |
+
+### Known failures and limits (V4)
+
+- The eight live answers were graded by one reviewer on one run (7 correct, 1 partial); the earlier runs and the A/B runs were not graded. "Answered" alone only means the output passed validation.
+- Redaction misses names and unusual formats; a correct-looking sentence around a removed contact is not checked.
+- One trace file read in full for every Details view; single user, one request at a time.
+- The concept map covers only what V3 extracted (17 of 43 chunks gave triples).
+- Error messages from the graph retriever ("Graph chunk settings differ from the frozen extraction snapshot") are accurate but technical.
+- After an update of the page files, a browser may keep the old JavaScript until the page is force-reloaded (seen once during the checks).
+- Part C is presented in class in C10; if the session adds requirements, they are not reflected here.

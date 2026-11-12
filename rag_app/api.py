@@ -10,12 +10,15 @@ from .service import MAX_BYTES, ROOT, PipelineError, RagService
 
 
 def create_app(service=None):
-    app = FastAPI(title='Evidence / RAG V3')
+    app = FastAPI(title='Evidence / RAG final release')
     app.state.rag = service or RagService()
 
     @app.exception_handler(PipelineError)
     async def pipeline_error(request, exc):
-        return JSONResponse(status_code=exc.status, content={'error': str(exc)})
+        content = {'error': str(exc)}
+        if hasattr(exc, 'trace_id'):
+            content['trace_id'] = exc.trace_id  # the UI can open the trace of a failed request
+        return JSONResponse(status_code=exc.status, content=content)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request, exc):
@@ -42,13 +45,32 @@ def create_app(service=None):
 
     @app.post('/api/index')
     def index(body: Selection):
-        return app.state.rag.index(body.document_ids, body.settings)
+        return app.state.rag.index_run(body.document_ids, body.settings)
 
     @app.post('/api/ask')
     def ask(body: RetrievalQuestion):
         if 'retrieval' not in body.model_fields_set:
             return app.state.rag.ask(body.question, body.document_ids, body.settings)
         return app.state.rag.ask_configured(body.question, body.document_ids, body.settings, body.retrieval)
+
+    @app.get('/api/traces')
+    def traces(kind: str | None = None, limit: int = 20):
+        return app.state.rag.traces.recent(max(1, min(limit, 100)), kind)
+
+    @app.get('/api/traces/{trace_id}')
+    def trace(trace_id: str):
+        found = app.state.rag.traces.get(trace_id)
+        if found is None:
+            raise PipelineError('Trace not found. Traces are kept for 30 days.', 404)
+        return found
+
+    @app.get('/api/concepts')
+    def concepts():
+        return app.state.rag.concepts()
+
+    @app.get('/api/concepts/{concept_id}')
+    def concept(concept_id: str):
+        return app.state.rag.concept(concept_id)
 
     @app.get('/api/evaluation')
     def evaluation():

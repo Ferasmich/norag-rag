@@ -1,15 +1,82 @@
-# Evidence — EPITA RAG V3
+# Evidence — EPITA RAG project (final release)
 
-A local web application for asking questions about selected `.txt` and `.md` documents, with inspectable evidence. V3 adds persistent BM25, configurable rank fusion and an evidence-grounded Kestrel Concept Graph to the V2 dense application. V1/V2 evaluation artifacts remain unchanged. Final measured results, defaults and analysis are in [REPORT.md](REPORT.md), section "V3 final".
+A local web application for asking questions about your own `.txt` and `.md` documents. Every answer comes with the passages it is based on and a **Details** button that shows what the application did, step by step.
 
-## Features and architecture
+Course: AI Systems Integration & Operations (BCS S5, EPITA, 2026). Versions: V1 naive RAG → V2 two corpora and evaluation → V3 hybrid search (dense + BM25 + concept graph) → **V4 final release** (traces, concept map explorer, personal data redaction). Decisions and measured results are in [REPORT.md](REPORT.md); the final check against the handout is in [reports/V4_FINAL_VERIFICATION.md](reports/V4_FINAL_VERIFICATION.md).
 
-The browser manages sources, chunk size, overlap, top-k, questions, answers, references and baseline results. FastAPI serves both the API and static frontend; there is no separate frontend build or Node runtime requirement. Pydantic validates requests and generated JSON. Local `all-MiniLM-L6-v2` embeddings feed a persistent Chroma cosine index. Gemini generates answers through the existing OpenAI-compatible integration.
+## Quick start
 
-Indexing: UTF-8 source → overlapping character windows → local embeddings → Chroma text/vector/metadata.
-Answering: selected source IDs + question → same embedding model → filtered top-k search → Gemini → schema/citation validation → answer and source passages.
+You need Python 3.12 and an internet connection for the installation (PyTorch is installed with `sentence-transformers`, so it takes a few minutes) and for the first run (it downloads the small `all-MiniLM-L6-v2` embedding model, once).
 
-The original `ask_rag_google.py` and `ask_norag_google.py` course demos remain available and use their original `chroma_db/` store. The web application uses a separate ignored `data/` directory.
+```bash
+git clone https://github.com/Ferasmich/norag-rag.git
+cd norag-rag
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+cp .env.example .env
+```
+
+Open `.env` and replace `your_google_api_key_here` with a Google AI Studio key (free to create at https://aistudio.google.com/app/api-keys). This is the only secret. Without it you can still load documents, search, browse the concept map and run the retrieval evaluation; asking a question shows "Set GOOGLE_API_KEY in .env to generate answers."
+
+```bash
+python -m uvicorn rag_app.api:app --host 127.0.0.1 --port 8000
+```
+
+Open **http://127.0.0.1:8000**, then:
+
+1. Click **Load the Kestrel demo documents** (five sample company documents from the course). A sample question is filled in.
+2. Click **Find an answer**. The first question takes a few seconds while the embedding model loads.
+3. Read the answer, open a **supporting reference** to check the source text, then click **Details** to see each step: the three searches, the fusion, the redaction, the LLM call with its tokens and cost, and the citation check.
+4. Open the **Concept map** tab, choose a concept and click its neighbours.
+
+To use your own files: **Add a document** (UTF-8 `.txt` or `.md`, up to 5 MiB), keep it ticked, ask. Nothing else is required: documents are prepared automatically on the first question.
+
+If something goes wrong, the message is shown in red above the answer area, with a **Details** button when a trace exists. Common cases: no API key (see above); "Graph chunk settings differ" or "supports only selected Kestrel source versions" means the *Concept graph* search method is ticked for documents or chunk sizes it was not built for — untick it in *Advanced search settings*. Stop the server with Ctrl+C. Use one server process only.
+
+Run the tests (no API key needed, about 20 seconds): `python -m pytest -q` → 174 tests.
+
+## What the final release (V4) adds
+
+**A. Traces.** Every question, every indexing run and every concept lookup records one trace with one span per step (name, duration, what happened). Traces are JSON lines in `data/traces/traces.jsonl`, on your machine only, kept 30 days. They contain chunk ids, counts, timings, token counts and cost; never API keys, document text or answers. The question is stored after redaction. Open a trace with **Details** (on an answer, on an error, after **Prepare documents now**, on a concept) or from **Recent activity** at the bottom of the page. API: `GET /api/traces`, `GET /api/traces/{id}`.
+
+**B. Concept map explorer.** The *Concept map* tab shows the V3 Kestrel concept graph: 42 concepts and 39 links. Choose a concept to see its neighbours, the relation on each link, any condition, and the exact sentence and chunk each link was extracted from. **Ask a question about this concept** prepares a question in the *Ask* tab. It reads the saved graph and makes no LLM call. API: `GET /api/concepts`, `GET /api/concepts/{id}`.
+
+**C. Personal data redaction.** E-mail addresses and phone numbers in the question and in the retrieved passages are replaced by placeholders such as `[EMAIL_1]` before anything is sent to Gemini and before the trace is written. The real values are put back in the answer on your machine. Names are not detected. Details and limits: REPORT.md, section "V4".
+
+**Clean-up.** One-click demo corpus, search settings folded under *Advanced search settings* (the defaults work), plain-language step names, a clear message when a question fails.
+
+Check scripts and results: `python -m evaluation.v4_checks offline --output <new file>` (no LLM call) and `python -m evaluation.v4_checks live --approve-external --output <new file>` (8 Gemini calls, about $0.015). Saved runs: [evaluation/results/v4/](evaluation/results/v4/README.md).
+
+## Where things are
+
+| Path | Content |
+|---|---|
+| `rag_app/service.py` | the pipeline: upload, chunk, index, retrieve, fuse, generate, validate |
+| `rag_app/tracing.py`, `redaction.py`, `concept_map.py` | the three V4 modules |
+| `rag_app/bm25.py`, `fusion.py`, `graph_*.py` | V3 retrievers |
+| `rag_app/static/` | the web page (plain HTML, CSS, JavaScript; no build step) |
+| `evaluation/` | question sets, evaluation scripts and saved results for V1–V4 |
+| `concepts/kestrel_graph_v2/` | the saved concept graph used by the app |
+| `data/` | created at run time, git-ignored: uploaded documents, indexes, traces |
+| `tests/` | automated tests |
+
+Optional settings in `.env`: `GOOGLE_MODEL` (default `gemini-3.5-flash-lite`), `RAG_DATA_DIR` (default `./data`). `requirements-lock.txt` lists the exact versions tested on macOS with Python 3.12.
+
+---
+
+# Earlier versions (V1–V3)
+
+The sections below document the previous releases. They are kept because the evaluation commands and results are still valid. Button names in the page changed in V4 ("Build selected index" is now **Prepare documents now**, under *Settings*).
+
+## Architecture (V1)
+
+FastAPI serves both the API and the static page. Pydantic validates requests and the JSON generated by the LLM. Local `all-MiniLM-L6-v2` embeddings feed a persistent Chroma cosine index. Gemini generates answers through its OpenAI-compatible endpoint.
+
+Indexing: UTF-8 source → overlapping character windows → local embeddings → Chroma.
+Answering: selected documents + question → retrieval → Gemini → schema and citation validation → answer and source passages.
+
+The original `ask_rag_google.py` and `ask_norag_google.py` course demos remain available and use their own `chroma_db/` store.
 
 ## Course demos and new challenges
 
@@ -136,22 +203,7 @@ python evaluation/results/v3/graph_v2_final_2026-11-08/analyze.py "$OUT"
 
 Options: `--candidate-depth` (per retriever, default 20), `--rrf-k` (default 60), `--top-k` (default 5). Existing output files are never overwritten. `scripts/v3_seedfix_eval.sh` reproduces the final Kestrel runs.
 
-## Installation
-
-Use Python 3.12 (the tested version), a writable local filesystem and internet access for the first MiniLM download. A Google API key with access to the selected Gemini model is needed for generation; retrieval evaluation does not require it.
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-dev.txt
-cp .env.example .env
-```
-
-Set `GOOGLE_API_KEY` in `.env`. Optional `GOOGLE_MODEL` defaults to the course demo's `gemini-3.5-flash-lite`; model availability depends on your account. Optional `RAG_DATA_DIR` changes the application data directory. Environment variables take precedence over `.env`. Never commit keys. The first embeddings run downloads the public MiniLM model; later runs can reuse its local cache.
-
-`requirements-lock.txt` records the exact tested macOS/Python 3.12 environment, including transitive dependencies. Use `pip install -r requirements-lock.txt` for matching environments; use the smaller requirement files on other platforms.
-
-## Start backend and frontend
+## V1 walkthrough
 
 From the repository root:
 
@@ -165,7 +217,7 @@ Open **http://127.0.0.1:8000**. The same process serves the frontend. API docume
 1. Upload `docs/vellora-duo-espresso-machine.txt` with **Upload source**. Uploaded sources persist across restarts. Each file is limited to 5 MiB and must contain nonempty UTF-8 text.
 2. Check one or more documents. New uploads are selected automatically. Identical content is deduplicated even with a different filename; the first filename is kept.
 3. Set chunk size (100–1,000 characters), overlap (0 to size minus one), and top-k (1–20).
-4. Click **Build selected index**, or ask a question to build missing indexes automatically. New size/overlap settings use a new index. Top-k reuses existing embeddings.
+4. Click **Prepare documents now** (called "Build selected index" before V4), or ask a question to build missing indexes automatically. New size/overlap settings use a new index. Top-k reuses existing embeddings.
 5. Try **How long is the Vellora Duo warranty?** The measured live answer was two years from purchase.
 6. Open a supporting reference to see its exact retrieved text, filename, start line and character offsets. Offsets are zero-based, end exclusive, in decoded source characters. The UI also exposes every retrieved passage, including on abstentions.
 7. Delete removes the uploaded source and its chunks from every web-app index. It does not delete the original repository file in `docs/`.
@@ -226,7 +278,7 @@ Bad uploads/settings/questions produce 400/413/422 errors; missing documents pro
 
 V1 dense retrieval misses some exact codes and boundary-spanning facts. There is no calibrated relevance threshold; evidence sufficiency is decided by the prompted LLM. Schema validation checks structure and citation membership, not whether every factual statement follows from a cited passage. Prompt instructions reduce but cannot eliminate hallucination or document prompt injection. Long/token-dense chunks may be truncated by MiniLM's 256-wordpiece limit even within the character cap. Similarities are not probabilities.
 
-This application has no authentication, multi-user isolation, background indexing, reranking or cost dashboard. Source passages and the question are sent to Google for generation. It is intended for loopback use with non-sensitive course material. Single-process indexing serializes retrieval; first indexing can take time. Old parameter-specific indexes remain until their documents are deleted. Browser smoke testing reached the V2 tabs and corpus loading; full result rendering, Words interaction and responsive layout remain unverified after browser access timed out. API workflows and JS syntax were verified.
+This application has no authentication, multi-user isolation, background indexing, reranking or cost dashboard (since V4 each trace shows the tokens and cost of its own request). Source passages and the question are sent to Google for generation; since V4, e-mail addresses and phone numbers are replaced first. It is intended for loopback use with non-sensitive course material. Single-process indexing serializes retrieval; first indexing can take time. Old parameter-specific indexes remain until their documents are deleted. Browser smoke testing reached the V2 tabs and corpus loading; full result rendering, Words interaction and responsive layout remain unverified after browser access timed out. API workflows and JS syntax were verified.
 
 See `REPORT.md` for decisions and observed failures, `reports/RAG_V2_IMPLEMENTATION_REPORT.md` for current delivery evidence and Git status, and the preserved V1 report for historical evidence.
 

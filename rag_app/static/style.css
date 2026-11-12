@@ -375,3 +375,27 @@ fieldset { border: 1px solid #c9cec6; border-radius: 8px; padding: 10px; margin-
 fieldset input[type="checkbox"] { width: auto; }
 .graph-path { border-left: 3px solid #718878; padding: 10px; margin: 10px 0; }
 .graph-path blockquote { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* V4: advanced settings, trace dialog and concept map */
+#advanced { margin: 10px 0; }
+#advanced summary { cursor: pointer; font-weight: 600; }
+button.link { background: none; border: 0; padding: 0; color: var(--green); text-decoration: underline; cursor: pointer; font: inherit; }
+#trace-dialog { width: min(900px, 94vw); max-height: 88vh; border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+#trace-dialog::backdrop { background: rgba(20, 30, 25, 0.45); }
+#trace-dialog form { text-align: right; }
+#trace-dialog table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+#trace-dialog th, #trace-dialog td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+#trace-dialog td:nth-child(2) { white-space: nowrap; }
+.trace-what { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+#trace-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
+#concept-map svg { width: 100%; max-height: 460px; border: 1px solid var(--line); border-radius: 10px; background: #fff; margin: 12px 0; }
+#concept-map .edge { stroke: #b9c7bb; stroke-width: 1.5; }
+#concept-map text { font-size: 12px; text-anchor: middle; fill: #24342e; }
+#concept-map .edge-label { font-size: 10px; fill: #527d61; }
+#concept-map .concept circle { fill: #64a17c; }
+#concept-map g[role="button"] { cursor: pointer; }
+#concept-map g[role="button"]:hover circle, #concept-map g[role="button"]:focus circle { fill: var(--green); }
+#concept-map .centre circle { fill: var(--green); }
+#concept-map .centre text { font-weight: 700; font-size: 14px; }
+#concept-detail blockquote { white-space: pre-wrap; overflow-wrap: anywhere; }
+button.details-button { width: auto; display: inline-block; padding: 6px 14px; margin: 6px 0; }
