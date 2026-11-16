@@ -63,7 +63,7 @@ Check scripts and results: `python -m evaluation.v4_checks offline --output <new
 | `data/` | created at run time, git-ignored: uploaded documents, indexes, traces |
 | `tests/` | automated tests |
 
-Optional settings in `.env`: `LLM_URL`, `LLM_API_KEY`, `LLM_MODEL` (default Gemini `gemini-3.5-flash-lite`), `RAG_DATA_DIR` (default `./data`), `RAG_GRAPH_AUTO_MAX_CHUNKS` (default 60). `requirements-lock.txt` lists the exact versions tested on macOS with Python 3.12.
+Optional settings in `.env`: `LLM_URL`, `LLM_API_KEY`, `LLM_MODEL` (default Gemini `gemini-3.5-flash-lite`), `LLM_TIMEOUT` (seconds per model call, default 45; a slow local model may need 300), `RAG_DATA_DIR` (default `./data`) and `RAG_GRAPH_AUTO_MAX_CHUNKS` (default 60). Personal overrides can go in `.env.local`; when a variable is set in several places, the real environment wins, then `.env.local`, then `.env`. `requirements-lock.txt` lists the exact versions tested on macOS with Python 3.12.
 
 ## Concept graph of your own documents
 
