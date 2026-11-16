@@ -566,8 +566,6 @@ class RagService:
             return self.graph_extractor
         if self.generator:  # tests and demos with a stubbed answer model never reach a real one
             return None
-        if os.getenv('RAG_GRAPH_AUTO', '1').lower() in ('0', 'off', 'false', 'no') and not manual:
-            return None
         from . import llm
         config = llm.load_config()
         if not config.usable:
@@ -577,6 +575,12 @@ class RagService:
             return llm.complete_json(config, system, user)
         call.model = config.model
         return call
+
+    @staticmethod
+    def _auto_graph_enabled():
+        from . import llm
+        llm.load_config()  # so that a value written in .env.local or .env is seen
+        return os.getenv('RAG_GRAPH_AUTO', '0').strip().lower() in ('1', 'on', 'true', 'yes')
 
     def graph_status(self, doc_id):
         files = self.graph_files(doc_id)
@@ -632,12 +636,17 @@ class RagService:
         return dict(self.graph_status(doc_id), trace_id=trace.id)
 
     def auto_graph(self, doc_id):
-        """Run after an upload. Never raises: the upload itself already succeeded."""
+        """Run after an upload: builds the graph only when RAG_GRAPH_AUTO is on. Never raises."""
         from .doc_graph import AUTO_MAX_CHUNKS
         limit = int(os.getenv('RAG_GRAPH_AUTO_MAX_CHUNKS', AUTO_MAX_CHUNKS))
         try:
             if self.graph_files(doc_id):
                 return dict(self.graph_status(doc_id), status='exists')
+            if not self._auto_graph_enabled():
+                # Building a graph sends the document's passages to the model, so it is the
+                # user's decision: the Build graph button, or RAG_GRAPH_AUTO=1 to opt in.
+                return dict(status='manual', reason='Click "Build graph" next to the document to create it '
+                                                    '(one model call per passage).')
             if self._graph_call() is None:
                 return dict(status='skipped', reason='No LLM configured (LLM_API_KEY), so no concept graph was built.')
             count = len(list(chunks(self.read(doc_id)['text'], Settings())))

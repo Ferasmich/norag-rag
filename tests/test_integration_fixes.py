@@ -53,6 +53,30 @@ def test_env_local_overrides_env_and_the_real_environment_overrides_both(monkeyp
     assert llm.load_config().model == 'shell-model'
 
 
+# ---------- 4. building a graph is an explicit action
+
+def test_upload_sends_nothing_to_the_model_until_build_graph_is_clicked(tmp_path, monkeypatch):
+    monkeypatch.setenv('RAG_GRAPH_AUTO', '0')
+    seen = []
+    client = TestClient(create_app(RagService(tmp_path, generator=stub_answer, graph_extractor=fake_extractor(seen))))
+    result = client.post('/api/documents', files={'file': ('meridian.txt', MERIDIAN.encode(), 'text/plain')}).json()
+    assert result['graph']['status'] == 'manual' and 'Build graph' in result['graph']['reason']
+    assert seen == [] and client.get('/api/graphs').json() == {}
+    built = client.post(f"/api/documents/{result['id']}/graph").json()
+    assert built['built'] and built['concepts'] == 4 and len(seen) == 1
+    trace = client.get('/api/traces/' + built['trace_id']).json()
+    assert trace['kind'] == 'graph' and trace['outcome'] == 'built'
+
+
+def test_building_on_upload_is_off_unless_asked_for(monkeypatch):
+    monkeypatch.setattr('dotenv.load_dotenv', lambda *a, **k: None)
+    monkeypatch.delenv('RAG_GRAPH_AUTO', raising=False)
+    assert not RagService._auto_graph_enabled()
+    for value, expected in (('1', True), ('true', True), ('0', False), ('', False), ('no', False)):
+        monkeypatch.setenv('RAG_GRAPH_AUTO', value)
+        assert RagService._auto_graph_enabled() is expected
+
+
 # ---------- 3. mixed selection
 
 def test_an_unrelated_uploaded_graph_does_not_change_a_kestrel_answer(tmp_path):

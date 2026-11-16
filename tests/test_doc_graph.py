@@ -16,6 +16,13 @@ MERIDIAN = ('Helios is a solar project led by Dr. Amara Nwosu. It uses Aqua-3 me
             'Budget contact: finance@meridian.example, +33 1 23 45 67 89.\n')
 
 
+@pytest.fixture(autouse=True)
+def graph_built_on_upload(monkeypatch):
+    # Building on upload is opt-in (RAG_GRAPH_AUTO=1). The tests of this file exercise that mode;
+    # the default (explicit Build graph click) is covered in tests/test_integration_fixes.py.
+    monkeypatch.setenv('RAG_GRAPH_AUTO', '1')
+
+
 def fake_extractor(seen=None):
     """Stands in for the model: finds the Helios sentences in whatever passage it receives."""
     def call(system, user):

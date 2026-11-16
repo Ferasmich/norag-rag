@@ -99,7 +99,7 @@ async function refresh() {
     if (!graph) {
       const build = node("button", "Build graph");
       build.type = "button";
-      build.title = "Extract a concept graph from this document (one model call per passage)";
+      build.title = "Extract a concept graph from this document. Its passages are sent to the configured model, one call per passage (e-mails and phone numbers are replaced first).";
       build.onclick = () =>
         run(async () => {
           status("Building the concept graph… one model call per passage.");
@@ -128,6 +128,7 @@ $("upload").onsubmit = (event) => {
       built: ` Concept graph built: ${g.concepts} concepts, ${g.links} links${g.complete ? "" : " (partial: some passages failed)"}.`,
       exists: " Its concept graph already exists.",
       skipped: " No concept graph: " + g.reason,
+      manual: " No concept graph yet. " + g.reason,
       too_large: " No concept graph yet: " + g.reason,
       failed: " The concept graph could not be built: " + g.reason + " Sources still work with the other search methods.",
     }[g.status] || "";
