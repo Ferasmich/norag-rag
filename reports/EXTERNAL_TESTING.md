@@ -72,3 +72,11 @@ I ran the application, every test and every check on my own machine, and took al
 - Full test suite on my Mac after all changes: **198 passed**.
 - Redaction check on the trace file (`data/traces/traces.jsonl`): 0 occurrences of the dummy email and 0 of the dummy phone number, so no personal data is stored in traces.
 - Server restarted and page hard-refreshed: the graph note now names the files without a graph instead of showing "undefined/undefined".
+
+## 7. Integration note (added by Feras Michael, 16 November 2026)
+
+Added during the integration review. Sections 1 to 6 above are Makuochukwu's report and are unchanged.
+
+- **Test count of the original code.** Section 1 says "195 passed on my Mac on the original code". The published `final` tag (`5303c6a`) contains **174** tests: this was checked by exporting the tag into an empty folder and running `python -m pytest -q`. The figure 195 could not be reproduced from the tagged code. The counts that can be reproduced are: 174 on `final`, **198** on this branch as committed (174 + 24 new tests), and 209 after the integration fixes below.
+- **Changes made after this report**, in a later commit: `LLM_TIMEOUT` setting (the 45-second limit made graph building fail with a slow local model), `.env.local` support, graph building on upload is now opt-in (`RAG_GRAPH_AUTO=1`; the default is the **Build graph** button), and a fix for mixed selections where an unrelated uploaded graph could push a Kestrel passage out of the top 5.
+

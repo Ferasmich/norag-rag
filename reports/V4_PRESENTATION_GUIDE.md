@@ -9,7 +9,7 @@ Preparation notes for the final presentation (C9: Parts A and B; C10: Part C and
 | V1 | Naive RAG web app: upload, chunk (800/80), MiniLM embeddings, Chroma, Gemini, validated citations | Hit@5 = 7/12 on the Vellora manual |
 | V2 | Second corpus (Kestrel), evaluation per question type, Words tab, hand grading | Kestrel 6 correct / 3 partial / 1 wrong; dense misses exact codes |
 | V3 | Hybrid search: dense + BM25 + concept graph, fused with RRF | Kestrel Recall@5 0.75 → 0.79 (two-hop 0.50 → 0.89); Vellora 0.58 → 0.92 with BM25 |
-| V4 | Observable (traces), a new feature (concept map), responsible (redaction), cleaned-up page | 81/81 rankings identical to V3; see below |
+| V4 | Observable (traces), a new feature (concept map), responsible (redaction), cleaned-up page | 93/93 rankings identical to V3; see below |
 
 One sentence: *V2 told us where V1 failed, V3 fixed retrieval and proved it, V4 lets anyone see what the app does and stops personal data from leaving the laptop.*
 
@@ -55,7 +55,7 @@ Fallback if the network or the API fails: the error itself is a valid demo of po
 
 ## 7. What the experiments showed
 
-- **No regression:** the V3 retrieval evaluation re-run on V4 gives the same ranked chunks for 81 of 81 questions.
+- **No regression:** the V3 retrieval evaluation re-run on V4 gives the same ranked chunks for 93 of 93 questions (7 configurations).
 - **Concept map:** 42 concepts, 156 quotes checked against the source files, 0 wrong.
 - **Eight live questions:** 7 answered, 1 abstained as expected; median 1.3 s, of which 25 ms is retrieval; about $0.0018 per question. Not yet hand-graded (say so if asked, unless the review is done by then).
 - **Redaction made an answer wrong, and we saw it:** with the address hidden, the model invented `refunds@kestrel.analytics`; without redaction it was right. A prompt sentence fixed the simple case (4/4). With two placeholders the model guessed the real address; a "reject" guard then refused a correct answer 3/3, so the final rule is "keep if it equals a hidden value, remove otherwise" (3/3 correct).
@@ -94,7 +94,7 @@ Fallback if the network or the API fails: the error itself is a valid demo of po
 
 **Can the model undo the redaction?** It never sees the value, but it can guess a plausible one. We observed this. The guard removes any address or number that is not one of the hidden values.
 
-**How do you know V4 did not break V3?** Same evaluation, same questions, identical ranked lists for 81 of 81 questions, and the 150 earlier tests pass unchanged.
+**How do you know V4 did not break V3?** Same evaluation, same questions, identical ranked lists for 93 of 93 questions, and the 150 earlier tests pass unchanged.
 
 **What would you do next?** Send only id, name and text to the model (saves tokens), a metrics page from the traces, name detection, and hand-grade more answers.
 

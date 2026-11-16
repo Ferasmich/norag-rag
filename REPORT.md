@@ -523,7 +523,7 @@ A retriever span records the number of candidates and the ids of its top chunks;
 
 ### Measured results
 
-**Retrieval regression (no LLM).** The V3 evaluation was re-run on the final code for 7 configurations and compared with the committed V3 runs: 81 of 81 questions have an identical ranked list of chunk ids, and all metrics are equal (`retrieval_regression_2026-11-12/comparison.json`).
+**Retrieval regression (no LLM).** The V3 evaluation was re-run on the final code for 7 configurations and compared with the committed V3 runs: 93 of 93 questions (4 Kestrel configurations × 12 questions and 3 Vellora configurations × 15) have an identical ranked list of chunk ids, and all metrics are equal (`retrieval_regression_2026-11-12/comparison.json`).
 
 | Corpus | Retrievers | Recall@5 V3 | Recall@5 V4 | Hit@5 V3 | Hit@5 V4 | Median V3 → V4 |
 |---|---|---|---|---|---|---|

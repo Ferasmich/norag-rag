@@ -36,7 +36,7 @@ To use your own files: **Add a document** (UTF-8 `.txt` or `.md`, up to 5 MiB), 
 
 If something goes wrong, the message is shown in red above the answer area, with a **Details** button when a trace exists. Common cases: no API key (see above); "Graph chunk settings differ" or "supports only selected Kestrel source versions" means the *Concept graph* search method is ticked for documents or chunk sizes it was not built for — untick it in *Advanced search settings*. Stop the server with Ctrl+C. Use one server process only.
 
-Run the tests (no API key needed, about 20 seconds): `python -m pytest -q` → 174 tests.
+Run the tests (no API key needed, about 20 seconds): `python -m pytest -q`.
 
 ## What the final release (V4) adds
 

@@ -35,7 +35,7 @@ Status meanings: **PASS** = implemented and verified by a test, a script or a br
 | Check | Status | Result |
 |---|---|---|
 | Automated tests | **PASS** | `python -m pytest -q`: 174 passed (150 existing, unchanged, + 24 in `tests/test_v4.py`). `node --check rag_app/static/app.js`: OK. |
-| V1–V3 retrieval unchanged | **PASS** | V3 evaluation re-run on the final code, 7 configurations: 81/81 identical ranked lists, identical metrics (`evaluation/results/v4/retrieval_regression_2026-11-12/comparison.json`). |
+| V1–V3 retrieval unchanged | **PASS** | V3 evaluation re-run on the final code, 7 configurations: 93/93 identical ranked lists (corrected on 16 Nov 2026; this line first said 81/81, a counting error; the comparison file always contained 93), identical metrics (`evaluation/results/v4/retrieval_regression_2026-11-12/comparison.json`). |
 | V1–V3 functions | **PASS** | Covered by the 150 earlier tests (upload, delete, index, dense/BM25/graph, RRF, evaluation API, Words, grading). Evaluation and Words tabs were not re-exercised by hand in the browser. |
 | Trace persistence and privacy | **PASS** | Traces survive a server restart (Recent activity listed earlier traces after restarts); pruning tested; no e-mail or phone in the trace file after the live runs and in the local `data/traces/traces.jsonl` (19 traces, 0 matches). |
 | Redaction edge cases | **PASS** | 11 detection cases as expected; sentence-final phone; IP, date, decimal not matched; 0 false positives on both corpora. |
