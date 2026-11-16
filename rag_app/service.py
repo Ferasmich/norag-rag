@@ -524,6 +524,13 @@ class RagService:
                         uncovered += [self.read(i)['name'] for i in with_graph]  # e.g. built with other chunk settings
                 elif not parts:
                     self._doc_graph_index(sorted(others), settings)  # raises the "no graph yet" message
+            # Same rule as inside one graph: guesses from loose word matching are only used when
+            # no concept is named in the question. Without it, an unrelated uploaded file could
+            # push its passages above the ones a named concept (e.g. an error code) leads to.
+            named = [part for part in parts
+                     if any(seed['matched_by'] == 'exact_name' for seed in part[1]['matched_entities'])]
+            if named:
+                parts = named
             if len(parts) == 1 and not uncovered:
                 return parts[0]
             return self._merge_graph_parts(parts, depth, uncovered, len(selected))

@@ -73,7 +73,7 @@ When you upload a `.txt` or `.md` file, the app builds its concept graph right a
 - used as a retriever: tick **Concept graph** next to Meaning and/or Exact words. Several documents can be selected; a concept with the same name in two of them becomes one node, so a path can cross documents;
 - left out safely: if no graph could be built, ticking it together with another retriever simply shows "graph unavailable" and the answer comes from the others. The graph must use the same chunk settings it was built with.
 
-The Kestrel demo keeps its frozen, validated graph, and it can be mixed with uploaded files: each graph is used for its own files, and files that have no graph are listed as "not covered" in the graph trace instead of switching the retriever off. A broken Kestrel snapshot is still an error. A file that is really Rich Text saved as `.txt` is refused with advice (save as plain text).
+The Kestrel demo keeps its frozen, validated graph, and it can be mixed with uploaded files: each graph is used for its own files (when the question names a concept of one graph, the other graphs do not add loose word-matching guesses), and files that have no graph are listed as "not covered" in the graph trace instead of switching the retriever off. A broken Kestrel snapshot is still an error. A file that is really Rich Text saved as `.txt` is refused with advice (save as plain text).
 
 ---
 
