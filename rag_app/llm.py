@@ -10,18 +10,34 @@ Settings are read from the real environment first, then .env.local, then .env.
 Google Gemini stays the default: when none of the three is set, the older
 GOOGLE_API_KEY / GOOGLE_MODEL variables and the Google endpoint are used,
 so an existing .env keeps working unchanged.
+
+GOOGLE_API_KEY is a Google credential. It is only ever sent to Google's own
+endpoint (https, generativelanguage.googleapis.com). With any other LLM_URL,
+only LLM_API_KEY is used; without it the request carries no real key, which is
+what a local server such as Ollama expects.
 """
 import os
 from pathlib import Path
 from typing import NamedTuple
+from urllib.parse import urlparse
 
 import dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
 GOOGLE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/'
 GOOGLE_MODEL = 'gemini-3.5-flash-lite'
+GOOGLE_HOST = 'generativelanguage.googleapis.com'
 PLACEHOLDERS = {'', 'your_google_api_key_here', 'your_api_key_here'}
 DEFAULT_TIMEOUT = 45
+
+
+def is_google(url):
+    """True only for Google's own endpoint over https (a look-alike host does not count)."""
+    try:
+        parts = urlparse(url)
+    except ValueError:
+        return False
+    return parts.scheme == 'https' and parts.hostname == GOOGLE_HOST
 
 
 class LLMConfig(NamedTuple):
@@ -31,8 +47,8 @@ class LLMConfig(NamedTuple):
 
     @property
     def usable(self):
-        """A key is needed, except for a custom LLM_URL (local servers often take none)."""
-        return self.key not in PLACEHOLDERS or self.url != GOOGLE_URL
+        """A key is needed for Google, not for a custom LLM_URL (local servers often take none)."""
+        return self.key not in PLACEHOLDERS or not is_google(self.url)
 
 
 def load_config():
@@ -41,12 +57,26 @@ def load_config():
     dotenv.load_dotenv(ROOT / '.env.local')
     dotenv.load_dotenv(ROOT / '.env')
     url = (os.getenv('LLM_URL') or '').strip() or GOOGLE_URL
-    key = (os.getenv('LLM_API_KEY') or os.getenv('GOOGLE_API_KEY') or '').strip()
+    key = (os.getenv('LLM_API_KEY') or '').strip()
+    if key in PLACEHOLDERS:
+        key = ''
+        # The older Google variable may only travel to Google, never to another provider.
+        if is_google(url):
+            key = (os.getenv('GOOGLE_API_KEY') or '').strip()
     model = (os.getenv('LLM_MODEL') or os.getenv('GOOGLE_MODEL') or '').strip() or GOOGLE_MODEL
     return LLMConfig(url, key, model)
 
 
 MISSING_KEY = 'Set LLM_API_KEY (or GOOGLE_API_KEY) in .env to generate answers.'
+
+
+def hide_secrets(text):
+    """Replace the configured API keys in a text before it is stored or shown."""
+    for name in ('LLM_API_KEY', 'GOOGLE_API_KEY'):
+        value = (os.getenv(name) or '').strip()
+        if len(value) >= 8 and value not in PLACEHOLDERS:
+            text = text.replace(value, '[hidden key]')
+    return text
 
 
 def timeout_seconds():

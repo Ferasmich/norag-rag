@@ -20,6 +20,7 @@ from pydantic import VERSION as PYDANTIC_VERSION, Field
 from .graph_schema import (ENDPOINTS, SCHEMA_VERSION, Extraction, Mention, ProviderResponse,
                            SourcedAlias, StrictModel, check_alias, filter_extraction, normalize,
                            quote_context, section_context, validate_extraction)
+from . import llm
 from .models import Settings
 from .service import ROOT, chunks
 
@@ -404,7 +405,7 @@ class GraphBuilder:
                     response = ProviderResponse.model_validate(client(self.request(row), self.config))
                 except Exception as exc:
                     attempt.update(status='provider_failed', error_type=type(exc).__name__,
-                                   error_message=str(exc)[:300],
+                                   error_message=llm.hide_secrets(str(exc))[:300],
                                    finished_at=now(), seconds=time.perf_counter()-call_start)
                     atomic_json(attempt_path, attempt)
                     pending.append(dict(chunk_id=row['id'], reason='provider_failed', attempt_id=attempt_id))

@@ -17,7 +17,7 @@ pip install -r requirements-dev.txt
 cp .env.example .env
 ```
 
-Open `.env` and put your key in `LLM_API_KEY` (a free Google AI Studio key works: https://aistudio.google.com/app/api-keys). By default the app talks to Google Gemini. To use another OpenAI-compatible model, also set `LLM_URL` and `LLM_MODEL` (examples are in `.env.example`; a local server such as Ollama needs no key). The older `GOOGLE_API_KEY` / `GOOGLE_MODEL` names still work. Without a key you can still load documents, search, browse the concept map and run the retrieval evaluation; asking a question shows "Set LLM_API_KEY (or GOOGLE_API_KEY) in .env to generate answers."
+Open `.env` and put your key in `LLM_API_KEY` (a free Google AI Studio key works: https://aistudio.google.com/app/api-keys). By default the app talks to Google Gemini. To use another OpenAI-compatible model, also set `LLM_URL` and `LLM_MODEL` (examples are in `.env.example`; a local server such as Ollama needs no key). The older `GOOGLE_API_KEY` / `GOOGLE_MODEL` names still work for Gemini. `GOOGLE_API_KEY` is only ever sent to Google's endpoint: with another `LLM_URL`, set `LLM_API_KEY` (or leave it empty for a local server). Without a key you can still load documents, search, browse the concept map and run the retrieval evaluation; asking a question shows "Set LLM_API_KEY (or GOOGLE_API_KEY) in .env to generate answers."
 
 **Intel Mac (x86_64):** recent PyTorch versions have no Intel Mac build. Use Python 3.12 and, after `pip install -r requirements-dev.txt`, pin `numpy<2`, `sentence-transformers<4`, `transformers<4.50` and `huggingface-hub<1.0` if the install or the first question fails with a torch/transformers import error.
 

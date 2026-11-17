@@ -15,7 +15,8 @@ def create_app(service=None):
 
     @app.exception_handler(PipelineError)
     async def pipeline_error(request, exc):
-        content = {'error': str(exc)}
+        from .llm import hide_secrets
+        content = {'error': hide_secrets(str(exc))}
         if hasattr(exc, 'trace_id'):
             content['trace_id'] = exc.trace_id  # the UI can open the trace of a failed request
         return JSONResponse(status_code=exc.status, content=content)

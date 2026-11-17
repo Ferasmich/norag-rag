@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Lock
 
+from .llm import hide_secrets
+
 KEEP_DAYS = 30
 
 
@@ -71,7 +73,8 @@ class TraceStore:
         self.lock = Lock()
 
     def save(self, trace):
-        line = json.dumps(trace.to_dict(), ensure_ascii=False)
+        # Keys are never put in a trace; this is a second barrier in case a message quotes one.
+        line = hide_secrets(json.dumps(trace.to_dict(), ensure_ascii=False))
         with self.lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with self.path.open('a', encoding='utf-8') as stream:
