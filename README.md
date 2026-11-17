@@ -50,6 +50,29 @@ Run the tests (no API key needed, about 20 seconds): `python -m pytest -q`.
 
 Check scripts and results: `python -m evaluation.v4_checks offline --output <new file>` (no LLM call) and `python -m evaluation.v4_checks live --approve-external --output <new file>` (8 Gemini calls, about $0.015). Saved runs: [evaluation/results/v4/](evaluation/results/v4/README.md).
 
+## Final status and individual reports
+
+| Part | In the handout (after C10) | In this repository |
+|---|---|---|
+| A. Observable | mandatory | a trace for every question, indexing run, graph build and concept lookup, opened with **Details** |
+| B. New feature | mandatory (one for a team of two) | Concept Map Explorer |
+| C. Responsible AI | optional | personal-data redaction (e-mail addresses and phone numbers) |
+| Metrics page | optional bonus | **Metrics** tab, computed from the saved traces |
+
+The professor's later requests are implemented: a user can upload a document, click **Build graph**, explore its concept graph in **Concept map** and use it as a retriever; and the model is configurable through `LLM_URL`, `LLM_API_KEY` and `LLM_MODEL` (any OpenAI-compatible endpoint).
+
+Models: Google Gemini (`gemini-3.5-flash-lite`) is the default cloud model. Ollama is the local runtime we used to run a model on the laptop; the model tested through it was `qwen2.5-coder:7b`. Since commit `441f5dd`, `GOOGLE_API_KEY` is only ever sent to Google's own endpoint.
+
+Tests: `python -m pytest -q` reported 231 passed on `main` at commit `441f5dd`.
+
+Releases: tag `final` (`5303c6a`) is the on-time submission. Tag `final-update` (`9caecfa`) adds uploaded-document graphs, the `LLM_*` settings and the Metrics tab. Later commits on `main` add the credential fix and the individual reports.
+
+Individual reports, each written by its author:
+
+- [Feras Michael](reports/report_feras.md)
+- [Makuochukwu Okoene](reports/report_mako.md)
+- Makuochukwu's independent testing report: [EXTERNAL_TESTING.md](reports/EXTERNAL_TESTING.md)
+
 ## Where things are
 
 | Path | Content |
